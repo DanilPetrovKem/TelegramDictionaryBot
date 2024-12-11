@@ -165,6 +165,17 @@ async def close_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     await query.answer()
     await query.edit_message_reply_markup(reply_markup=None)
 
+
+def test():
+    word = "table"
+    data = fetch_word_data(word)
+    definitions = get_definition_list(data)
+    synonyms = get_synonym_list(data)
+
+    print(f"Data for '{word}': {data}")
+    print(f"Definitions for '{word}': {definitions}")
+    print(f"Synonyms for '{word}': {synonyms}")
+
 def main():
     # test()
 
@@ -196,17 +207,6 @@ def main():
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, provide_word_information), group=1)
 
     application.run_polling()
-
-def test():
-    word = "table"
-    data = fetch_word_data(word)
-    definitions = get_definition_list(data)
-    synonyms = get_synonym_list(data)
-
-    print(f"Data for '{word}': {data}")
-    print(f"Definitions for '{word}': {definitions}")
-    print(f"Synonyms for '{word}': {synonyms}")
-
 
 if __name__ == "__main__":
     main()
