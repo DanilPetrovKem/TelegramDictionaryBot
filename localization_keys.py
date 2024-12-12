@@ -14,3 +14,6 @@ class Phrases(Enum):
     ANTONYMS = auto()
     CLOSE = auto()
     MAIN_MEANING = auto()
+    INVALID_COMMAND_USAGE = auto()
+    INVALID_LANGUAGE = auto()
+    LANGUAGE_CHANGED = auto()

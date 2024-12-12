@@ -8,6 +8,9 @@ class LocalizationError(Exception):
     pass
 
 class Localization:
+    # Add a static property locales
+    locales = []
+
     def __init__(self, locale: str = "en"):
         self.locale = locale
         self.strings = {}
@@ -40,14 +43,13 @@ class Localization:
         return message
 
     @classmethod
-    def validate_localizations(cls, locales: Optional[List[str]] = None) -> None:
-        if locales is None:
-            locales_dir = os.path.join(os.path.dirname(__file__), "locales")
-            locales = [
-                filename.split(".")[0] for filename in os.listdir(locales_dir)
-                if filename.endswith(".json")
-            ]
-        
+    def validate_localizations(cls) -> None:
+        locales_dir = os.path.join(os.path.dirname(__file__), "locales")
+        locales = [
+            filename.split(".")[0] for filename in os.listdir(locales_dir)
+            if filename.endswith(".json")
+        ]
+            
         enum_keys = {phrase.name for phrase in Phrases}
         all_valid = True
 
@@ -76,5 +78,6 @@ class Localization:
         if not all_valid:
             raise LocalizationError("Localization validation failed. Check the logs for details.")
         else:
+            cls.locales = locales
             logging.info("Available locales: " + ", ".join(locales))
             logging.info("All localization files are valid.")

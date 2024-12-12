@@ -22,11 +22,14 @@ logging.basicConfig(level=logging.INFO, format='%(message)s')
 words_api = WordsAPIClient()
 localization_instances = {}
 
-def get_user_locale(update: Update) -> str:
+def get_user_locale(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str:
+    custom_locale = context.user_data.get("locale")
+    if custom_locale in Localization.locales:
+        return custom_locale
     return update.effective_user.language_code or "en"
 
 def get_localization(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Localization:
-    user_locale = get_user_locale(update)
+    user_locale = get_user_locale(update, context)
     if user_locale not in localization_instances:
         localization_instances[user_locale] = Localization(locale=user_locale)
     return localization_instances[user_locale]
@@ -68,6 +71,19 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await update.message.reply_text(localization.get(Phrases.CANCEL_MESSAGE))
     return ConversationHandler.END
 
+async def set_language(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    localization = get_localization(update, context)
+    if len(context.args) != 1:
+        await update.message.reply_text(localization.get(Phrases.INVALID_COMMAND_USAGE))
+        return
+    language = context.args[0].lower()
+    if language not in Localization.locales:
+        await update.message.reply_text(localization.get(Phrases.INVALID_LANGUAGE))
+        return
+    context.user_data["locale"] = language
+    localization = get_localization(update, context)
+    await update.message.reply_text(localization.get(Phrases.LANGUAGE_CHANGED).format(language=language))
+
 async def provide_word_information(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     localization = get_localization(update, context)
     word = update.message.text.strip().lower()
@@ -87,7 +103,7 @@ async def provide_word_information(update: Update, context: ContextTypes.DEFAULT
 
     keyboard = InlineKeyboard.generate([Buttons.MORE_DETAILS], localization)
     await update.message.reply_text(
-        f"{localization.get(Phrases.MAIN_MEANING)} '{word}':\n\n{main_meaning}",
+        f"{localization.get(Phrases.MAIN_MEANING).format(word=word)}:\n\n{main_meaning}",
         reply_markup=keyboard
     )
     return 0
@@ -172,6 +188,7 @@ def main() -> None:
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("help", help_command))
     application.add_handler(CommandHandler("cancel", cancel))
+    application.add_handler(CommandHandler("lang", set_language))
 
     application.add_handler(CallbackQueryHandler(callback_dispatcher))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, provide_word_information), group=1)

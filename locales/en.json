@@ -1,6 +1,6 @@
 {
-    "START_MESSAGE": "Hello! I can look up words for you using WordsAPI.\nType a word and I'll give you its definition.\n\nUse /help to see available commands.\n\nBy Danil Petrov",
-    "HELP_MESSAGE": "I can help you find definitions of words.\n- Type a word directly to get its definition.\n- After getting a definition, use the 'More details' button for origin, synonyms and more.\nCommands:\n/help - Show this help message\n\nBy Danil Petrov",
+    "START_MESSAGE": "Hello! I can look up words for you using WordsAPI. \nType a word and I'll give you its definition.\n\nUse /help to see available commands.\n\nBy Danil Petrov",
+    "HELP_MESSAGE": "I can help you find definitions of words.\n- Type a word directly to get its definition.\n- After getting a definition, use the 'More details' button for origin, synonyms and more.\nCommands:\n/lang en - Change language to English\n/lang ru - Сменить язык на русский\n/help - Show this help message\n\nBy Danil Petrov",
     "CANCEL_MESSAGE": "Action cancelled.",
     "WORD_NOT_FOUND": "I couldn't find that word in WordsAPI.",
     "NO_DEFINITIONS_FOUND": "No definitions found.",
@@ -11,5 +11,8 @@
     "SYNONYMS": "Synonyms",
     "ANTONYMS": "Antonyms",
     "CLOSE": "Close",
-    "MAIN_MEANING": "Main meaning of"
+    "MAIN_MEANING": "Main meaning of '{word}'",
+    "INVALID_COMMAND_USAGE": "Invalid command usage",
+    "INVALID_LANGUAGE": "Invalid language",
+    "LANGUAGE_CHANGED": "Language changed to {language}"
 }
