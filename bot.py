@@ -23,6 +23,7 @@ from telegram.ext import (
 )
 
 from words_api_client import WordsAPIClient
+from inline_keyboard import Buttons, InlineKeyboard
 
 words_api = WordsAPIClient()
 
@@ -30,18 +31,6 @@ logging.basicConfig(
     level=logging.INFO,
     format='%(message)s'
 )
-
-class Buttons(Enum):
-    MORE_DETAILS = "More details"
-    SYNONYMS = "Synonyms"
-    ANTONYMS = "Antonyms"
-    CLOSE = "Close"
-    
-    @property
-    def callback_data(self):
-        return self.name.lower()
-
-BUTTON_MAPPING = {button: InlineKeyboardButton(button.value, callback_data=button.callback_data) for button in Buttons}
 
 def save_word_data(context: ContextTypes.DEFAULT_TYPE, data: dict) -> None:
     context.user_data["data"] = data
@@ -64,12 +53,6 @@ def get_antonym_list(data: dict) -> list:
     results = data.get("results", [])
     all_antonyms = {antonym for r in results for antonym in r.get("antonyms", [])}
     return sorted(all_antonyms)
-
-def generate_inline_keyboard(buttons: list[Buttons] | list[list[Buttons]]) -> InlineKeyboardMarkup:
-    if all(isinstance(button, Buttons) for button in buttons):
-        buttons = [buttons]
-    keyboard_buttons = [[BUTTON_MAPPING[button] for button in row] for row in buttons]
-    return InlineKeyboardMarkup(keyboard_buttons)
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     text = (
@@ -112,9 +95,7 @@ async def provide_word_information(update: Update, context: ContextTypes.DEFAULT
 
     save_word_data(context, data)
 
-    keyboard = generate_inline_keyboard([
-        [Buttons.MORE_DETAILS]
-    ])
+    keyboard = InlineKeyboard.generate([Buttons.MORE_DETAILS])
     await update.message.reply_text(
         f"Main meaning of '{word}':\n\n{main_meaning}",
         reply_markup=keyboard
@@ -125,7 +106,7 @@ async def more_details_callback(update: Update, context: ContextTypes.DEFAULT_TY
     query = update.callback_query
     await query.answer()
 
-    keyboard = generate_inline_keyboard([
+    keyboard = InlineKeyboard.generate([
         [Buttons.SYNONYMS, Buttons.ANTONYMS],
         [Buttons.CLOSE]
     ])
@@ -142,7 +123,7 @@ async def synonyms_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     synonyms_text = ", ".join(synonyms_list) if synonyms_list else "No synonyms found."
     existing_text = query.message.text
     new_text = merge_with_query(existing_text, f"Synonyms:\n{synonyms_text}")
-    keyboard = generate_inline_keyboard([
+    keyboard = InlineKeyboard.generate([
         [Buttons.SYNONYMS, Buttons.ANTONYMS],
         [Buttons.CLOSE]
     ])
@@ -156,7 +137,7 @@ async def antonyms_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     antonyms_text = ", ".join(antonyms_list) if antonyms_list else "No antonyms found."
     existing_text = query.message.text
     new_text = merge_with_query(existing_text, f"Antonyms:\n{antonyms_text}")
-    keyboard = generate_inline_keyboard([
+    keyboard = InlineKeyboard.generate([
         [Buttons.SYNONYMS, Buttons.ANTONYMS],
         [Buttons.CLOSE]
     ])
