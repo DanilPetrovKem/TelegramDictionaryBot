@@ -1,7 +1,8 @@
 import os
 import logging
-import requests
 from enum import Enum
+
+import requests
 from dotenv import load_dotenv
 from telegram import (
     Update, 
@@ -21,30 +22,32 @@ from telegram.ext import (
     filters
 )
 
-class ActionsUsed(Enum):
-    MORE_DETAILS = "more_details"
-    SYNONYMS = "synonyms"
-    ANTONYMS = "antonyms"
+from words_api_client import WordsAPIClient
+
+words_api = WordsAPIClient()
+
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(message)s'
+)
+
+class Buttons(Enum):
+    MORE_DETAILS = "More details"
+    SYNONYMS = "Synonyms"
+    ANTONYMS = "Antonyms"
+    CLOSE = "Close"
+    
+    @property
+    def callback_data(self):
+        return self.name.lower()
+
+BUTTON_MAPPING = {button: InlineKeyboardButton(button.value, callback_data=button.callback_data) for button in Buttons}
 
 def save_word_data(context: ContextTypes.DEFAULT_TYPE, data: dict) -> None:
     context.user_data["data"] = data
 
 def get_word_data(context: ContextTypes.DEFAULT_TYPE) -> dict:
     return context.user_data.get("data", {})
-
-
-def fetch_word_data(word: str) -> dict:
-    host = os.getenv("WORDSAPI_HOST")
-    key = os.getenv("WORDSAPI_KEY")
-    url = f"https://{host}/words/{word}"
-    headers = {
-        "X-RapidAPI-Host": host,
-        "X-RapidAPI-Key": key,
-    }
-    response = requests.get(url, headers=headers)
-    if response.status_code == 200:
-        return response.json()
-    return None
 
 def get_definition_list(data: dict) -> list:
     results = data.get("results", [])
@@ -54,28 +57,19 @@ def get_definition_list(data: dict) -> list:
 
 def get_synonym_list(data: dict) -> list:
     results = data.get("results", [])
-    all_synonyms = set()
-    for r in results:
-        synonyms = r.get("synonyms", [])
-        for synonym in synonyms:
-            all_synonyms.add(synonym)
-    return sorted(all_synonyms) if all_synonyms else []
+    all_synonyms = {synonym for r in results for synonym in r.get("synonyms", [])}
+    return sorted(all_synonyms)
 
 def get_antonym_list(data: dict) -> list:
     results = data.get("results", [])
-    all_antonyms = set()
-    for r in results:
-        antonyms = r.get("antonyms", [])
-        for antonym in antonyms:
-            all_antonyms.add(antonym)
-    return sorted(all_antonyms) if all_antonyms else []
+    all_antonyms = {antonym for r in results for antonym in r.get("antonyms", [])}
+    return sorted(all_antonyms)
 
-def generate_keyboard() -> InlineKeyboardMarkup:
-    buttons = []
-    buttons.append(InlineKeyboardButton("Synonyms", callback_data="synonyms"))
-    buttons.append(InlineKeyboardButton("Antonyms", callback_data="antonyms"))
-    buttons.append(InlineKeyboardButton("Close", callback_data="close"))
-    return InlineKeyboardMarkup([buttons])
+def generate_inline_keyboard(buttons: list[Buttons] | list[list[Buttons]]) -> InlineKeyboardMarkup:
+    if all(isinstance(button, Buttons) for button in buttons):
+        buttons = [buttons]
+    keyboard_buttons = [[BUTTON_MAPPING[button] for button in row] for row in buttons]
+    return InlineKeyboardMarkup(keyboard_buttons)
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     text = (
@@ -104,7 +98,7 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 async def provide_word_information(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     word = update.message.text.strip().lower()
     context.user_data["word"] = word
-    data = fetch_word_data(word)
+    data = words_api.fetch_word_data(word)
 
     if not data or "results" not in data:
         await update.message.reply_text("I couldn't find that word in WordsAPI.")
@@ -118,13 +112,12 @@ async def provide_word_information(update: Update, context: ContextTypes.DEFAULT
 
     save_word_data(context, data)
 
-    keyboard = [
-        [InlineKeyboardButton("More details", callback_data="more_details")]
-    ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
+    keyboard = generate_inline_keyboard([
+        [Buttons.MORE_DETAILS]
+    ])
     await update.message.reply_text(
         f"Main meaning of '{word}':\n\n{main_meaning}",
-        reply_markup=reply_markup
+        reply_markup=keyboard
     )
     return 0
 
@@ -132,7 +125,10 @@ async def more_details_callback(update: Update, context: ContextTypes.DEFAULT_TY
     query = update.callback_query
     await query.answer()
 
-    keyboard = generate_keyboard()
+    keyboard = generate_inline_keyboard([
+        [Buttons.SYNONYMS, Buttons.ANTONYMS],
+        [Buttons.CLOSE]
+    ])
     await query.edit_message_reply_markup(reply_markup=keyboard)
 
 def merge_with_query(existing_text: str, append_text: str) -> str:
@@ -146,7 +142,10 @@ async def synonyms_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     synonyms_text = ", ".join(synonyms_list) if synonyms_list else "No synonyms found."
     existing_text = query.message.text
     new_text = merge_with_query(existing_text, f"Synonyms:\n{synonyms_text}")
-    keyboard = generate_keyboard()
+    keyboard = generate_inline_keyboard([
+        [Buttons.SYNONYMS, Buttons.ANTONYMS],
+        [Buttons.CLOSE]
+    ])
     await query.edit_message_text(new_text, reply_markup=keyboard)
 
 async def antonyms_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -157,7 +156,10 @@ async def antonyms_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     antonyms_text = ", ".join(antonyms_list) if antonyms_list else "No antonyms found."
     existing_text = query.message.text
     new_text = merge_with_query(existing_text, f"Antonyms:\n{antonyms_text}")
-    keyboard = generate_keyboard()
+    keyboard = generate_inline_keyboard([
+        [Buttons.SYNONYMS, Buttons.ANTONYMS],
+        [Buttons.CLOSE]
+    ])
     await query.edit_message_text(new_text, reply_markup=keyboard)
 
 async def close_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -165,20 +167,38 @@ async def close_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     await query.answer()
     await query.edit_message_reply_markup(reply_markup=None)
 
+CALLBACK_HANDLERS = {
+    Buttons.MORE_DETAILS.callback_data: more_details_callback,
+    Buttons.SYNONYMS.callback_data: synonyms_callback,
+    Buttons.ANTONYMS.callback_data: antonyms_callback,
+    Buttons.CLOSE.callback_data: close_callback,
+}
 
-def test():
+async def callback_dispatcher(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    query = update.callback_query
+    data = query.data
+
+    handler = CALLBACK_HANDLERS.get(data)
+    if handler:
+        await handler(update, context)
+    else:
+        logging.warning(f"Unknown callback data: {data}")
+        await query.answer("Unknown action")
+
+def test() -> None:
     word = "table"
-    data = fetch_word_data(word)
+    data = words_api.fetch_word_data(word)
     definitions = get_definition_list(data)
     synonyms = get_synonym_list(data)
 
-    print(f"Data for '{word}': {data}")
-    print(f"Definitions for '{word}': {definitions}")
-    print(f"Synonyms for '{word}': {synonyms}")
+def load_config():
+    required_vars = ["WORDSAPI_HOST", "WORDSAPI_KEY", "TELEGRAM_BOT_TOKEN"]
+    missing_vars = [var for var in required_vars if not os.getenv(var)]
+    if missing_vars:
+        raise EnvironmentError(f"Missing environment variables: {', '.join(missing_vars)}")
 
-def main():
-    # test()
-
+def main() -> None:
+    load_config()
     load_dotenv()
     token = os.getenv("TELEGRAM_BOT_TOKEN")
     if not token:
@@ -186,23 +206,11 @@ def main():
 
     application = ApplicationBuilder().token(token).build()
 
-    conv_handler = ConversationHandler(
-        entry_points=[CommandHandler("start", start)],
-        states={
-            0: [],
-        },
-        fallbacks=[CommandHandler("cancel", cancel)],
-    )
-
-    application.add_handler(conv_handler)
-
+    application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("help", help_command))
     application.add_handler(CommandHandler("cancel", cancel))
 
-    application.add_handler(CallbackQueryHandler(more_details_callback, pattern="^more_details$"))
-    application.add_handler(CallbackQueryHandler(synonyms_callback, pattern="^synonyms$"))
-    application.add_handler(CallbackQueryHandler(antonyms_callback, pattern="^antonyms$"))
-    application.add_handler(CallbackQueryHandler(close_callback, pattern="^close$"))
+    application.add_handler(CallbackQueryHandler(callback_dispatcher))
 
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, provide_word_information), group=1)
 
