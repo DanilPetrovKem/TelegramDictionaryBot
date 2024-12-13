@@ -3,7 +3,7 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 from localization import Localization
 from localization_keys import Phrases
 
-class Buttons(Enum):
+class Button(Enum):
     MORE_DETAILS = "more_details"
     SYNONYMS = "synonyms"
     ANTONYMS = "antonyms"
@@ -18,13 +18,11 @@ class InlineKeyboard:
     def generate(buttons, localization: Localization) -> InlineKeyboardMarkup:
         keyboard_buttons = []
         for button in buttons:
-            if isinstance(button, Buttons):
+            if isinstance(button, Button):
                 try:
-                    # Map Buttons enum to Phrases enum using button name
-                    phrase_key = Phrases[button.name]  # Phrases enum should have the same member names
+                    phrase_key = Phrases[button.name]
                     button_text = localization.get(phrase_key)
                 except KeyError:
-                    # Handle the case where the phrase does not exist
                     button_text = button.name.replace("_", " ").title()
                 keyboard_buttons.append([InlineKeyboardButton(button_text, callback_data=button.callback_data)])
             elif isinstance(button, list):
@@ -38,3 +36,17 @@ class InlineKeyboard:
                     row.append(InlineKeyboardButton(b_text, callback_data=b.callback_data))
                 keyboard_buttons.append(row)
         return InlineKeyboardMarkup(keyboard_buttons)
+
+    @staticmethod
+    def generate_details_buttons(user_data, localization: Localization) -> InlineKeyboardMarkup:
+        used_buttons = user_data.get('used_buttons', [])
+        unused_buttons = [
+            button for button in [Button.SYNONYMS, Button.ANTONYMS]
+            if button.value not in used_buttons
+        ]
+        if not unused_buttons:
+            return None
+        return InlineKeyboard.generate([
+            unused_buttons,
+            [Button.CLOSE]
+        ], localization)

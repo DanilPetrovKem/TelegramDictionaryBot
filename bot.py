@@ -13,7 +13,7 @@ from telegram.ext import (
     filters
 )
 from words_api_client import WordsAPIClient
-from inline_keyboard import Buttons, InlineKeyboard
+from inline_keyboard import Button, InlineKeyboard
 from localization import Localization
 from localization_keys import Phrases
 
@@ -101,7 +101,7 @@ async def provide_word_information(update: Update, context: ContextTypes.DEFAULT
 
     save_word_data(context, data)
 
-    keyboard = InlineKeyboard.generate([Buttons.MORE_DETAILS], localization)
+    keyboard = InlineKeyboard.generate([Button.MORE_DETAILS], localization)
 
     if "last_message_id" in context.user_data:
         try:
@@ -126,10 +126,8 @@ async def more_details_callback(update: Update, context: ContextTypes.DEFAULT_TY
     query = update.callback_query
     await query.answer()
 
-    keyboard = InlineKeyboard.generate([
-        [Buttons.SYNONYMS, Buttons.ANTONYMS],
-        [Buttons.CLOSE]
-    ], localization)
+    context.user_data["used_buttons"] = []
+    keyboard = InlineKeyboard.generate_details_buttons(context.user_data, localization)
     await query.edit_message_reply_markup(reply_markup=keyboard)
 
 def merge_with_query(existing_text: str, append_text: str) -> str:
@@ -144,10 +142,8 @@ async def synonyms_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     synonyms_text = ", ".join(synonyms_list) if synonyms_list else localization.get(Phrases.NO_SYNONYMS_FOUND)
     existing_text = query.message.text
     new_text = merge_with_query(existing_text, f"{localization.get(Phrases.SYNONYMS)}:\n{synonyms_text}")
-    keyboard = InlineKeyboard.generate([
-        [Buttons.SYNONYMS, Buttons.ANTONYMS],
-        [Buttons.CLOSE]
-    ], localization)
+    context.user_data["used_buttons"].append(Button.SYNONYMS.value)
+    keyboard = InlineKeyboard.generate_details_buttons(context.user_data, localization)
     await query.edit_message_text(new_text, reply_markup=keyboard)
 
 async def antonyms_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -159,22 +155,21 @@ async def antonyms_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     antonyms_text = ", ".join(antonyms_list) if antonyms_list else localization.get(Phrases.NO_ANTONYMS_FOUND)
     existing_text = query.message.text
     new_text = merge_with_query(existing_text, f"{localization.get(Phrases.ANTONYMS)}:\n{antonyms_text}")
-    keyboard = InlineKeyboard.generate([
-        [Buttons.SYNONYMS, Buttons.ANTONYMS],
-        [Buttons.CLOSE]
-    ], localization)
+    context.user_data["used_buttons"].append(Button.ANTONYMS.value)
+    keyboard = InlineKeyboard.generate_details_buttons(context.user_data, localization)
     await query.edit_message_text(new_text, reply_markup=keyboard)
 
 async def close_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
+    context.user_data["used_buttons"] = []
     await query.answer()
     await query.edit_message_reply_markup(reply_markup=None)
 
 CALLBACK_HANDLERS = {
-    Buttons.MORE_DETAILS.callback_data: more_details_callback,
-    Buttons.SYNONYMS.callback_data: synonyms_callback,
-    Buttons.ANTONYMS.callback_data: antonyms_callback,
-    Buttons.CLOSE.callback_data: close_callback,
+    Button.MORE_DETAILS.callback_data: more_details_callback,
+    Button.SYNONYMS.callback_data: synonyms_callback,
+    Button.ANTONYMS.callback_data: antonyms_callback,
+    Button.CLOSE.callback_data: close_callback,
 }
 
 async def callback_dispatcher(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
