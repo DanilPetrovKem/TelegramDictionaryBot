@@ -3,12 +3,15 @@ import os
 import logging
 from localization_keys import Phrases
 from typing import Any, List, Optional
+from telegram import Update
+from telegram.ext import ContextTypes
+
+localization_instances = {}
 
 class LocalizationError(Exception):
     pass
 
 class Localization:
-    # Add a static property locales
     locales = []
 
     def __init__(self, locale: str = "en"):
@@ -81,3 +84,15 @@ class Localization:
             cls.locales = locales
             logging.info("Available locales: " + ", ".join(locales))
             logging.info("All localization files are valid.")
+
+def get_user_locale(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str:
+    custom_locale = context.user_data.get("locale")
+    if custom_locale in Localization.locales:
+        return custom_locale
+    return update.effective_user.language_code or "en"
+
+def select_localization(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Localization:
+    user_locale = get_user_locale(update, context)
+    if user_locale not in localization_instances:
+        localization_instances[user_locale] = Localization(locale=user_locale)
+    return localization_instances[user_locale]
