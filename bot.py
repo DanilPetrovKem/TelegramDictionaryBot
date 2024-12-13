@@ -86,6 +86,9 @@ async def provide_word_information(update: Update, context: ContextTypes.DEFAULT
     context.user_data[ContextKey.LAST_MESSAGE_ID] = sent_message.message_id
     return 0
 
+def merge_with_query(query_text: str, append_text: str) -> str:
+    return f"{query_text}\n\n{append_text}"
+
 async def more_details_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     localization = select_localization(update, context)
     query = update.callback_query
@@ -95,8 +98,24 @@ async def more_details_callback(update: Update, context: ContextTypes.DEFAULT_TY
     keyboard = InlineKeyboard.generate_details_buttons(context.user_data, localization)
     await query.edit_message_reply_markup(reply_markup=keyboard)
 
-def merge_with_query(query_text: str, append_text: str) -> str:
-    return f"{query_text}\n\n{append_text}"
+async def all_definitions_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    localization = select_localization(update, context)
+    query = update.callback_query
+    await query.answer()
+
+    definitions_list = words_api.get_definition_list(context.user_data[ContextKey.DATA])
+    definitions_list = definitions_list[1:] if len(definitions_list) > 1 else definitions_list
+    definitions_text = "\n".join([f"{i+1}. {definition}" for i, definition in enumerate(definitions_list, start=1)])
+    existing_text = query.message.text
+    lines = existing_text.split('\n')
+    for idx, line in enumerate(lines):
+        if line.startswith("1. "):
+            insert_idx = idx + 1
+            break
+    new_text = "\n".join(lines[:insert_idx] + [definitions_text] + lines[insert_idx:])
+    context.user_data[ContextKey.USED_BUTTONS].append(Button.ALL_DEFINITIONS.value)
+    keyboard = InlineKeyboard.generate_details_buttons(context.user_data, localization)
+    await query.edit_message_text(new_text, reply_markup=keyboard)
 
 async def synonyms_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     localization = select_localization(update, context)
@@ -131,6 +150,7 @@ async def close_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     await query.edit_message_reply_markup(reply_markup=None)
 
 CALLBACK_HANDLERS = {
+    Button.ALL_DEFINITIONS.callback_data: all_definitions_callback,
     Button.MORE_DETAILS.callback_data: more_details_callback,
     Button.SYNONYMS.callback_data: synonyms_callback,
     Button.ANTONYMS.callback_data: antonyms_callback,

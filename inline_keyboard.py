@@ -5,8 +5,12 @@ from localization_keys import Phrases
 
 class Button(Enum):
     MORE_DETAILS = "more_details"
+
+    ALL_DEFINITIONS = "all_definitions"
+
     SYNONYMS = "synonyms"
     ANTONYMS = "antonyms"
+
     CLOSE = "close"
 
     @property
@@ -40,13 +44,18 @@ class InlineKeyboard:
     @staticmethod
     def generate_details_buttons(user_data, localization: Localization) -> InlineKeyboardMarkup:
         used_buttons = user_data.get('used_buttons', [])
-        unused_buttons = [
-            button for button in [Button.SYNONYMS, Button.ANTONYMS]
-            if button.value not in used_buttons
-        ]
-        if not unused_buttons:
-            return None
-        return InlineKeyboard.generate([
-            unused_buttons,
+        button_structure = [
+            [Button.ALL_DEFINITIONS],
+            [Button.SYNONYMS, Button.ANTONYMS],
             [Button.CLOSE]
-        ], localization)
+        ]
+        unused_buttons = []
+        for row in button_structure:
+            filtered_row = [button for button in row if button.value not in used_buttons]
+            if filtered_row:
+                unused_buttons.append(filtered_row)
+
+        # If only the close button is left, remove the entire row
+        if len(unused_buttons) == 1 and len(unused_buttons[0]) == 1:
+            unused_buttons = []
+        return InlineKeyboard.generate(unused_buttons, localization)
