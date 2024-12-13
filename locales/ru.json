@@ -15,5 +15,9 @@
     "MAIN_MEANING": "Основное значение слова '{word}'",
     "INVALID_COMMAND_USAGE": "Неверное использование команды",
     "INVALID_LANGUAGE": "Неверный язык",
-    "LANGUAGE_CHANGED": "Язык изменен на {language}"
+    "LANGUAGE_CHANGED": "Язык изменен на {language}",
+    "COMMAND_RANDOM": "Случайное слово",
+    "COMMAND_LANG_EN": "English interface",
+    "COMMAND_LANG_RU": "Русский интерфейс",
+    "COMMAND_HELP": "Показать справочное сообщение"
 }

@@ -1,8 +1,9 @@
 import os
 import logging
 from dotenv import load_dotenv
-from telegram import Update
+from telegram import Update, BotCommand
 from telegram.ext import (
+    Application,
     ApplicationBuilder,
     CommandHandler,
     MessageHandler,
@@ -25,7 +26,12 @@ words_api = WordsAPIClient()
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     localization = select_localization(update, context)
     text = localization.get(Phrases.START_MESSAGE)
-    await update.message.reply_text(text)
+    keyboard = InlineKeyboard.generate([
+        Button.RANDOM,
+        Button.LANG_EN,
+        Button.LANG_RU
+    ], localization)
+    await update.message.reply_text(text, reply_markup=keyboard)
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     localization = select_localization(update, context)
@@ -169,6 +175,30 @@ async def callback_dispatcher(update: Update, context: ContextTypes.DEFAULT_TYPE
         logging.warning(f"Unknown callback data: {data}")
         await query.answer("Unknown action")
 
+async def lang_en_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    await set_language_specific(update, context, 'en')
+
+async def lang_ru_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    await set_language_specific(update, context, 'ru')
+
+async def set_language_specific(update: Update, context: ContextTypes.DEFAULT_TYPE, language: str) -> None:
+    context.user_data[ContextKey.LOCALE] = language
+    localization = select_localization(update, context)
+    await update.message.reply_text(localization.get(Phrases.LANGUAGE_CHANGED).format(language=language))
+
+def get_localized_commands(localization: Localization) -> list:
+    return [
+        BotCommand("lang_en", localization.get(Phrases.COMMAND_LANG_EN)),
+        BotCommand("lang_ru", localization.get(Phrases.COMMAND_LANG_RU)),
+        BotCommand("help", localization.get(Phrases.COMMAND_HELP)),
+    ]
+
+async def post_init(application: Application) -> None:
+    bot = application.bot
+    for locale in Localization.locales:
+        localization = Localization(locale)
+        commands = get_localized_commands(localization)
+        await bot.set_my_commands(commands=commands, language_code=locale)
 
 def main() -> None:
     Localization.validate_localizations()
@@ -176,12 +206,20 @@ def main() -> None:
     token = os.getenv("TELEGRAM_BOT_TOKEN")
     if not token: raise ValueError("Bot token not found. Please set TELEGRAM_BOT_TOKEN.")
 
-    application = ApplicationBuilder().token(token).build()
-
+    application = (
+        ApplicationBuilder()
+        .token(token)
+        .post_init(post_init)
+        .build()
+    )
+    
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("help", help_command))
     application.add_handler(CommandHandler("cancel", cancel))
     application.add_handler(CommandHandler("lang", set_language))
+    application.add_handler(CommandHandler("random", random_command))
+    application.add_handler(CommandHandler("lang_en", lang_en_command))
+    application.add_handler(CommandHandler("lang_ru", lang_ru_command))
 
     application.add_handler(CallbackQueryHandler(callback_dispatcher))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, provide_word_information), group=1)

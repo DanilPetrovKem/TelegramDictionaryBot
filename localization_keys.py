@@ -18,3 +18,7 @@ class Phrases(Enum):
     INVALID_COMMAND_USAGE = auto()
     INVALID_LANGUAGE = auto()
     LANGUAGE_CHANGED = auto()
+    COMMAND_RANDOM = auto()
+    COMMAND_LANG_EN = auto()
+    COMMAND_LANG_RU = auto()
+    COMMAND_HELP = auto()
