@@ -102,10 +102,23 @@ async def provide_word_information(update: Update, context: ContextTypes.DEFAULT
     save_word_data(context, data)
 
     keyboard = InlineKeyboard.generate([Buttons.MORE_DETAILS], localization)
-    await update.message.reply_text(
+
+    if "last_message_id" in context.user_data:
+        try:
+            await context.bot.edit_message_reply_markup(
+                chat_id=update.effective_chat.id,
+                message_id=context.user_data["last_message_id"],
+                reply_markup=None
+            )
+        except Exception as e:
+            logging.warning(f"Failed to edit previous message: {e}")
+
+    sent_message = await update.message.reply_text(
         f"'{word}':\n\n1. {main_meaning}",
         reply_markup=keyboard
     )
+    context.user_data["last_message_id"] = sent_message.message_id
+
     return 0
 
 async def more_details_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
