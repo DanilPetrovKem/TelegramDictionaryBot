@@ -22,22 +22,6 @@ logging.basicConfig(level=logging.INFO, format='%(message)s')
 
 words_api = WordsAPIClient()
 
-def get_definition_list(data: dict) -> list:
-    results = data.get("results", [])
-    if not results:
-        return []
-    return [r.get("definition", "No definition available.") for r in results]
-
-def get_synonym_list(data: dict) -> list:
-    results = data.get("results", [])
-    all_synonyms = {synonym for r in results for synonym in r.get("synonyms", [])}
-    return sorted(all_synonyms)
-
-def get_antonym_list(data: dict) -> list:
-    results = data.get("results", [])
-    all_antonyms = {antonym for r in results for antonym in r.get("antonyms", [])}
-    return sorted(all_antonyms)
-
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     localization = select_localization(update, context)
     text = localization.get(Phrases.START_MESSAGE)
@@ -75,7 +59,7 @@ async def provide_word_information(update: Update, context: ContextTypes.DEFAULT
         await update.message.reply_text(localization.get(Phrases.WORD_NOT_FOUND))
         return ConversationHandler.END
 
-    definitions = get_definition_list(data)
+    definitions = words_api.get_definition_list(data)
     main_meaning = definitions[0] if definitions else localization.get(Phrases.NO_DEFINITIONS_FOUND)
     if not definitions:
         await update.message.reply_text(main_meaning)
@@ -100,7 +84,6 @@ async def provide_word_information(update: Update, context: ContextTypes.DEFAULT
         reply_markup=keyboard
     )
     context.user_data[ContextKey.LAST_MESSAGE_ID] = sent_message.message_id
-
     return 0
 
 async def more_details_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -112,15 +95,15 @@ async def more_details_callback(update: Update, context: ContextTypes.DEFAULT_TY
     keyboard = InlineKeyboard.generate_details_buttons(context.user_data, localization)
     await query.edit_message_reply_markup(reply_markup=keyboard)
 
-def merge_with_query(existing_text: str, append_text: str) -> str:
-    return f"{existing_text}\n\n{append_text}"
+def merge_with_query(query_text: str, append_text: str) -> str:
+    return f"{query_text}\n\n{append_text}"
 
 async def synonyms_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     localization = select_localization(update, context)
     query = update.callback_query
     await query.answer()
 
-    synonyms_list = get_synonym_list(context.user_data[ContextKey.DATA])
+    synonyms_list = words_api.get_synonym_list(context.user_data[ContextKey.DATA])
     synonyms_text = ", ".join(synonyms_list) if synonyms_list else localization.get(Phrases.NO_SYNONYMS_FOUND)
     existing_text = query.message.text
     new_text = merge_with_query(existing_text, f"{localization.get(Phrases.SYNONYMS)}:\n{synonyms_text}")
@@ -133,7 +116,7 @@ async def antonyms_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     query = update.callback_query
     await query.answer()
 
-    antonyms_list = get_antonym_list(context.user_data[ContextKey.DATA])
+    antonyms_list = words_api.get_antonym_list(context.user_data[ContextKey.DATA])
     antonyms_text = ", ".join(antonyms_list) if antonyms_list else localization.get(Phrases.NO_ANTONYMS_FOUND)
     existing_text = query.message.text
     new_text = merge_with_query(existing_text, f"{localization.get(Phrases.ANTONYMS)}:\n{antonyms_text}")

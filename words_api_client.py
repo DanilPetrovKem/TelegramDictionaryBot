@@ -21,3 +21,19 @@ class WordsAPIClient:
         except requests.exceptions.RequestException as e:
             logging.error(f"Error fetching data for word '{word}': {e}")
             return None
+
+    def get_definition_list(self, data: dict) -> list:
+        results = data.get("results", [])
+        if not results:
+            return []
+        return [r.get("definition", "No definition available.") for r in results]
+    
+    def get_synonym_list(self, data: dict) -> list:
+        results = data.get("results", [])
+        all_synonyms = {synonym for r in results for synonym in r.get("synonyms", [])}
+        return sorted(all_synonyms)
+    
+    def get_antonym_list(self, data: dict) -> list:
+        results = data.get("results", [])
+        all_antonyms = {antonym for r in results for antonym in r.get("antonyms", [])}
+        return sorted(all_antonyms)
