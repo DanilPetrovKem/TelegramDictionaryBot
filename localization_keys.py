@@ -9,6 +9,7 @@ class Phrases(Enum):
     NO_SYNONYMS_FOUND = auto()
     NO_ANTONYMS_FOUND = auto()
     UNKNOWN_ACTION = auto()
+    ALL_DEFINITIONS = auto()
     MORE_DETAILS = auto()
     SYNONYMS = auto()
     ANTONYMS = auto()
