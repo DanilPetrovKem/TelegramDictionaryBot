@@ -5,6 +5,7 @@ from localization_keys import Phrases
 from typing import Any, List, Optional
 from telegram import Update
 from telegram.ext import ContextTypes
+from enums import ContextKey
 
 localization_instances = {}
 
@@ -86,7 +87,7 @@ class Localization:
             logging.info("All localization files are valid.")
 
 def get_user_locale(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str:
-    custom_locale = context.user_data.get("locale")
+    custom_locale = context.user_data.get(ContextKey.LOCALE)
     if custom_locale in Localization.locales:
         return custom_locale
     return update.effective_user.language_code or "en"
