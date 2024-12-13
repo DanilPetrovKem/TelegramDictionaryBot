@@ -103,7 +103,7 @@ async def provide_word_information(update: Update, context: ContextTypes.DEFAULT
 
     keyboard = InlineKeyboard.generate([Buttons.MORE_DETAILS], localization)
     await update.message.reply_text(
-        f"{localization.get(Phrases.MAIN_MEANING).format(word=word)}:\n\n{main_meaning}",
+        f"'{word}':\n\n1. {main_meaning}",
         reply_markup=keyboard
     )
     return 0
