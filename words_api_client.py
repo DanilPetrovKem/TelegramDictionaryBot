@@ -21,6 +21,21 @@ class WordsAPIClient:
         except requests.exceptions.RequestException as e:
             logging.error(f"Error fetching data for word '{word}': {e}")
             return None
+        
+    def fetch_random_word(self) -> str:
+        url = self.base_url
+        querystring = {"random":"true"} 
+        headers = {
+            "X-RapidAPI-Host": self.host,
+            "X-RapidAPI-Key": self.key,
+        }
+        try:
+            response = requests.get(url, headers=headers, params=querystring, timeout=5)
+            response.raise_for_status()
+            return response.json().get("word", "")
+        except requests.exceptions.RequestException as e:
+            logging.error(f"Error fetching random word: {e}")
+            return ""
 
     def get_definition_list(self, data: dict) -> list:
         results = data.get("results", [])
@@ -37,3 +52,4 @@ class WordsAPIClient:
         results = data.get("results", [])
         all_antonyms = {antonym for r in results for antonym in r.get("antonyms", [])}
         return sorted(all_antonyms)
+    
