@@ -217,7 +217,6 @@ def main() -> None:
     application.add_handler(CommandHandler("help", help_command))
     application.add_handler(CommandHandler("cancel", cancel))
     application.add_handler(CommandHandler("lang", set_language))
-    application.add_handler(CommandHandler("random", random_command))
     application.add_handler(CommandHandler("lang_en", lang_en_command))
     application.add_handler(CommandHandler("lang_ru", lang_ru_command))
 
