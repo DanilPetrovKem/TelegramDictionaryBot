@@ -1,6 +1,6 @@
 from enum import Enum
 
-class ContextKey(str, Enum):
+class UserData(str, Enum):
     DATA = "data"
     USED_BUTTONS = "used_buttons"
     LOCALE = "locale"

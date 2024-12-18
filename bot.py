@@ -17,7 +17,7 @@ from words_api_client import WordsAPIClient
 from inline_keyboard import Button, InlineKeyboard
 from localization import Localization, select_localization
 from localization_keys import Phrases
-from enums import ContextKey
+from enums import UserData
 
 logging.basicConfig(level=logging.INFO, format='%(message)s')
 
@@ -47,7 +47,7 @@ async def set_language(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     if language not in Localization.locales:
         await update.message.reply_text(localization.get(Phrases.INVALID_LANGUAGE))
         return
-    context.user_data[ContextKey.LOCALE] = language
+    context.user_data[UserData.LOCALE] = language
     localization = select_localization(update, context)
     await update.message.reply_text(localization.get(Phrases.LANGUAGE_CHANGED).format(language=language))
 
@@ -59,46 +59,43 @@ async def random_word(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     await provide_word_information(word, update, context)
 
 async def plain_message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    if ContextKey.LAST_MESSAGE_ID in context.user_data:
+    word = update.message.text.strip().lower()
+    await close_previous_markup(update, context)
+    await provide_word_information(word, update, context)
+
+async def close_previous_markup(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if UserData.LAST_MESSAGE_ID in context.user_data:
         try:
             await context.bot.edit_message_reply_markup(
                 chat_id=update.effective_chat.id,
-                message_id=context.user_data[ContextKey.LAST_MESSAGE_ID],
+                message_id=context.user_data[UserData.LAST_MESSAGE_ID],
                 reply_markup=None
             )
         except Exception as e:
             logging.warning(f"Failed to edit previous message: {e}")
-    word = update.message.text.strip().lower()
-    await provide_word_information(word, update, context)
 
-async def provide_word_information(word: str, update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+async def provide_word_information(word: str, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     localization = select_localization(update, context)
     data = words_api.fetch_word_data(word)
 
     if not data:
         await update.message.reply_text(localization.get(Phrases.WORD_NOT_FOUND))
-        return ConversationHandler.END
-    
-    if not data.get("results"):
-        reply_text = f"'{word}':\n\n{localization.get(Phrases.NO_DEFINITIONS_FOUND)}"
-        await update.message.reply_text(reply_text)
-        return ConversationHandler.END
 
     definitions = words_api.get_definition_list(data)
-    main_meaning = definitions[0] if definitions else localization.get(Phrases.NO_DEFINITIONS_FOUND)
     if not definitions:
-        await update.message.reply_text(main_meaning)
-        return ConversationHandler.END
+        reply_text = f"'{word}':\n\n{localization.get(Phrases.NO_DEFINITIONS_FOUND)}"
+        await update.message.reply_text(reply_text)
 
-    context.user_data[ContextKey.DATA] = data
+    main_meaning = definitions[0]
+
+    context.user_data[UserData.DATA] = data
     keyboard = InlineKeyboard.generate([Button.MORE_DETAILS], localization)
 
     sent_message = await update.message.reply_text(
         f"'{word}':\n\n1. {main_meaning}",
         reply_markup=keyboard
     )
-    context.user_data[ContextKey.LAST_MESSAGE_ID] = sent_message.message_id
-    return 0
+    context.user_data[UserData.LAST_MESSAGE_ID] = sent_message.message_id
 
 def merge_with_query(query_text: str, append_text: str) -> str:
     return f"{query_text}\n\n{append_text}"
@@ -108,7 +105,7 @@ async def more_details_callback(update: Update, context: ContextTypes.DEFAULT_TY
     query = update.callback_query
     await query.answer()
 
-    context.user_data[ContextKey.USED_BUTTONS] = []
+    context.user_data[UserData.USED_BUTTONS] = []
     keyboard = InlineKeyboard.generate_details_buttons(context.user_data, localization)
     await query.edit_message_reply_markup(reply_markup=keyboard)
 
@@ -117,7 +114,7 @@ async def all_definitions_callback(update: Update, context: ContextTypes.DEFAULT
     query = update.callback_query
     await query.answer()
 
-    definitions_list = words_api.get_definition_list(context.user_data[ContextKey.DATA])
+    definitions_list = words_api.get_definition_list(context.user_data[UserData.DATA])
     definitions_list = definitions_list[1:] if len(definitions_list) > 1 else definitions_list
     if len(definitions_list) == 1:
         definitions_list = []
@@ -129,7 +126,7 @@ async def all_definitions_callback(update: Update, context: ContextTypes.DEFAULT
             insert_idx = idx + 1
             break
     new_text = "\n".join(lines[:insert_idx] + [definitions_text] + lines[insert_idx:])
-    context.user_data[ContextKey.USED_BUTTONS].append(Button.ALL_DEFINITIONS.value)
+    context.user_data[UserData.USED_BUTTONS].append(Button.ALL_DEFINITIONS.value)
     keyboard = InlineKeyboard.generate_details_buttons(context.user_data, localization)
     await query.edit_message_text(new_text, reply_markup=keyboard)
 
@@ -138,11 +135,11 @@ async def synonyms_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     query = update.callback_query
     await query.answer()
 
-    synonyms_list = words_api.get_synonym_list(context.user_data[ContextKey.DATA])
-    synonyms_text = ", ".join(synonyms_list) if synonyms_list else localization.get(Phrases.NO_SYNONYMS_FOUND)
+    synonyms_list = words_api.get_synonym_list(context.user_data[UserData.DATA])
+    synonyms_text = ", ".join(synonyms_list) if synonyms_list else "-"
     existing_text = query.message.text
     new_text = merge_with_query(existing_text, f"{localization.get(Phrases.SYNONYMS)}:\n{synonyms_text}")
-    context.user_data[ContextKey.USED_BUTTONS].append(Button.SYNONYMS.value)
+    context.user_data[UserData.USED_BUTTONS].append(Button.SYNONYMS.value)
     keyboard = InlineKeyboard.generate_details_buttons(context.user_data, localization)
     await query.edit_message_text(new_text, reply_markup=keyboard)
 
@@ -151,17 +148,34 @@ async def antonyms_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     query = update.callback_query
     await query.answer()
 
-    antonyms_list = words_api.get_antonym_list(context.user_data[ContextKey.DATA])
-    antonyms_text = ", ".join(antonyms_list) if antonyms_list else localization.get(Phrases.NO_ANTONYMS_FOUND)
+    antonyms_list = words_api.get_antonym_list(context.user_data[UserData.DATA])
+    antonyms_text = ", ".join(antonyms_list) if antonyms_list else "-"
     existing_text = query.message.text
     new_text = merge_with_query(existing_text, f"{localization.get(Phrases.ANTONYMS)}:\n{antonyms_text}")
-    context.user_data[ContextKey.USED_BUTTONS].append(Button.ANTONYMS.value)
+    context.user_data[UserData.USED_BUTTONS].append(Button.ANTONYMS.value)
+    keyboard = InlineKeyboard.generate_details_buttons(context.user_data, localization)
+    await query.edit_message_text(new_text, reply_markup=keyboard)
+
+async def rhymes_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    localization = select_localization(update, context)
+    query = update.callback_query
+    await query.answer()
+
+    word = context.user_data.get(UserData.DATA, {}).get("word", "")
+    rhymes = words_api.fetch_rhymes(word)
+    if rhymes:
+        rhymes_text = ", ".join(rhymes)
+    else:
+        rhymes_text = "-"
+    existing_text = query.message.text
+    new_text = merge_with_query(existing_text, f"{localization.get(Phrases.RHYMES)}:\n{rhymes_text}")
+    context.user_data[UserData.USED_BUTTONS].append(Button.RHYMES.value)
     keyboard = InlineKeyboard.generate_details_buttons(context.user_data, localization)
     await query.edit_message_text(new_text, reply_markup=keyboard)
 
 async def close_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
-    context.user_data[ContextKey.USED_BUTTONS] = []
+    context.user_data[UserData.USED_BUTTONS] = []
     await query.answer()
     await query.edit_message_reply_markup(reply_markup=None)
 
@@ -171,16 +185,21 @@ CALLBACK_HANDLERS = {
     Button.SYNONYMS.callback_data: synonyms_callback,
     Button.ANTONYMS.callback_data: antonyms_callback,
     Button.CLOSE.callback_data: close_callback,
+    Button.RHYMES.callback_data: rhymes_callback,
 }
 
 async def callback_dispatcher(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    localization = select_localization(update, context)
     query = update.callback_query
     data = query.data
 
     handler = CALLBACK_HANDLERS.get(data)
     if handler:
-        await handler(update, context)
+        try:
+            await handler(update, context)
+        except Exception as e:
+            logging.error(f"Error handling callback data '{data}': {e}")
+            await close_previous_markup(update, context)
+            await query.message.reply_text(f"Error: {str(e)}")
     else:
         logging.warning(f"Unknown callback data: {data}")
         await query.answer("Unknown action")
@@ -192,7 +211,7 @@ async def lang_ru_command(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     await set_language_specific(update, context, 'ru')
 
 async def set_language_specific(update: Update, context: ContextTypes.DEFAULT_TYPE, language: str) -> None:
-    context.user_data[ContextKey.LOCALE] = language
+    context.user_data[UserData.LOCALE] = language
     localization = select_localization(update, context)
     await update.message.reply_text(localization.get(Phrases.LANGUAGE_CHANGED).format(language=language))
 

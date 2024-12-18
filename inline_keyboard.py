@@ -10,6 +10,7 @@ class Button(Enum):
 
     SYNONYMS = "synonyms"
     ANTONYMS = "antonyms"
+    RHYMES = "rhymes"
 
     CLOSE = "close"
 
@@ -47,6 +48,7 @@ class InlineKeyboard:
         button_structure = [
             [Button.ALL_DEFINITIONS],
             [Button.SYNONYMS, Button.ANTONYMS],
+            [Button.RHYMES],
             [Button.CLOSE]
         ]
         unused_buttons = []

@@ -36,6 +36,26 @@ class WordsAPIClient:
         except requests.exceptions.RequestException as e:
             logging.error(f"Error fetching random word: {e}")
             return ""
+        
+    def fetch_rhymes(self, word: str) -> list:
+        url = f"{self.base_url}/{word}/rhymes"
+        headers = {
+            "X-RapidAPI-Host": self.host,
+            "X-RapidAPI-Key": self.key,
+        }
+        try:
+            response = requests.get(url, headers=headers, timeout=5)
+            response.raise_for_status()
+            rhymes = response.json().get("rhymes", {}).get("all", [])
+            # Filter our all rhymes which contain the word itself
+            filtered_rhymes = [rhyme for rhyme in rhymes if word not in rhyme]
+            # Filter out all rhymes which contain spaces
+            filtered_rhymes = [rhyme for rhyme in filtered_rhymes if " " not in rhyme]
+            print(f"Filtered rhymes: {filtered_rhymes}")
+            return filtered_rhymes
+        except requests.exceptions.RequestException as e:
+            logging.error(f"Error fetching rhymes for word '{word}': {e}")
+            return []
 
     def get_definition_list(self, data: dict) -> list:
         results = data.get("results", [])
