@@ -2,22 +2,25 @@
     "START_MESSAGE": "Hello! I can look up words for you using WordsAPI. \nType a word and I'll give you its definition\n\nUse /help to see available commands\n\nBy Danil Petrov",
     "HELP_MESSAGE": "I can help you find definitions of words.\n- Type a word directly to get its definition.\n- After getting a definition, use the 'More details' button for origin, synonyms and more.\nCommands:\n/lang en - Change language to English\n/lang ru - Сменить язык на русский\n/help - Show this help message\n\nBy Danil Petrov",
     "CANCEL_MESSAGE": "Action cancelled",
-    "WORD_NOT_FOUND": "I couldn't find that word in WordsAPI",
-    "NO_DEFINITIONS_FOUND": "The word exists but this dictionary does not provide its definition",
-    "UNKNOWN_ACTION": "Unknown action",
+
     "MORE_DETAILS": "More details",
     "ALL_DEFINITIONS": "All definitions",
     "SYNONYMS": "Synonyms",
     "ANTONYMS": "Antonyms",
     "RHYMES": "Rhymes",
     "CLOSE": "Close",
-    "MAIN_MEANING": "Main meaning of '{word}'",
-    "INVALID_COMMAND_USAGE": "Invalid command usage",
-    "INVALID_LANGUAGE": "Invalid language",
-    "MESSAGE_TOO_LONG": "Sorry! My message would be too long to send",
+
     "LANGUAGE_CHANGED": "Language changed to {language}",
+    
     "COMMAND_RANDOM": "Random word",
     "COMMAND_LANG_EN": "English interface",
     "COMMAND_LANG_RU": "Русский интерфейс",
-    "COMMAND_HELP": "Show help message"
+    "COMMAND_HELP": "Show help message",
+
+    "WORD_NOT_FOUND": "I couldn't find that word in WordsAPI",
+    "NO_DEFINITIONS_FOUND": "The word exists but this dictionary does not provide its definition",
+
+    "UNKNOWN_ACTION": "Unknown action",
+    "INVALID_COMMAND_USAGE": "Invalid command usage",
+    "INVALID_LANGUAGE": "Invalid language"
 }

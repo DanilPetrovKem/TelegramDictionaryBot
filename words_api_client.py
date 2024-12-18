@@ -7,6 +7,7 @@ class WordsAPIClient:
         self.host = os.getenv("WORDSAPI_HOST")
         self.key = os.getenv("WORDSAPI_KEY")
         self.base_url = f"https://{self.host}/words"
+        self.current_data = {}
 
     def fetch_word_data(self, word: str) -> dict:
         url = f"{self.base_url}/{word}"
@@ -17,6 +18,7 @@ class WordsAPIClient:
         try:
             response = requests.get(url, headers=headers, timeout=5)
             response.raise_for_status()
+            self.current_data = response.json()
             return response.json()
         except requests.exceptions.RequestException as e:
             logging.error(f"Error fetching data for word '{word}': {e}")
@@ -51,7 +53,6 @@ class WordsAPIClient:
             filtered_rhymes = [rhyme for rhyme in rhymes if word not in rhyme]
             # Filter out all rhymes which contain spaces
             filtered_rhymes = [rhyme for rhyme in filtered_rhymes if " " not in rhyme]
-            print(f"Filtered rhymes: {filtered_rhymes}")
             return filtered_rhymes
         except requests.exceptions.RequestException as e:
             logging.error(f"Error fetching rhymes for word '{word}': {e}")
