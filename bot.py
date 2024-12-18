@@ -1,7 +1,7 @@
 import os
 import logging
 from dotenv import load_dotenv
-import re
+import functools
 from telegram import Update, BotCommand
 from telegram.ext import (
     Application,
@@ -124,78 +124,59 @@ async def provide_word_information(word: str, update: Update, context: ContextTy
     sent_message = await update.message.reply_text(message_text, reply_markup=inline_keyboard)
     context.user_data[UserData.LAST_MESSAGE_ID] = sent_message.message_id
 
-async def more_details_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    localization = select_localization(update, context)
-    query = update.callback_query
-    await query.answer()
-
+async def more_details_callback(update: Update, context: ContextTypes.DEFAULT_TYPE, query, localization) -> None:
     context.user_data[UserData.USED_BUTTONS] = []
     inline_keyboard = InlineKeyboard.generate_details_buttons(context.user_data, localization)
     await query.edit_message_reply_markup(reply_markup=inline_keyboard)
 
-async def all_definitions_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    localization = select_localization(update, context)
-    query = update.callback_query
-    await query.answer()
-
+async def all_definitions_callback(update: Update, context: ContextTypes.DEFAULT_TYPE, query, localization) -> None:
     context.user_data[UserData.USED_BUTTONS].append(Button.ALL_DEFINITIONS.value)
     new_text, _ = convert_word_data_to_message(update, context)
     inline_keyboard = InlineKeyboard.generate_details_buttons(context.user_data, localization)
     await query.edit_message_text(new_text, reply_markup=inline_keyboard)
 
-async def synonyms_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    localization = select_localization(update, context)
-    query = update.callback_query
-    await query.answer()
-
+async def synonyms_callback(update: Update, context: ContextTypes.DEFAULT_TYPE, query, localization) -> None:
     context.user_data[UserData.USED_BUTTONS].append(Button.SYNONYMS.value)
     new_text, _ = convert_word_data_to_message(update, context)
     inline_keyboard = InlineKeyboard.generate_details_buttons(context.user_data, localization)
     await query.edit_message_text(new_text, reply_markup=inline_keyboard)
 
-async def antonyms_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    localization = select_localization(update, context)
-    query = update.callback_query
-    await query.answer()
-
+async def antonyms_callback(update: Update, context: ContextTypes.DEFAULT_TYPE, query, localization) -> None:
     context.user_data[UserData.USED_BUTTONS].append(Button.ANTONYMS.value)
     new_text, _ = convert_word_data_to_message(update, context)
     inline_keyboard = InlineKeyboard.generate_details_buttons(context.user_data, localization)
     await query.edit_message_text(new_text, reply_markup=inline_keyboard)
 
-async def rhymes_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    localization = select_localization(update, context)
-    query = update.callback_query
-    await query.answer()
-
+async def rhymes_callback(update: Update, context: ContextTypes.DEFAULT_TYPE, query, localization) -> None:
     context.user_data[UserData.USED_BUTTONS].append(Button.RHYMES.value)
     new_text, _ = convert_word_data_to_message(update, context)
     keyboard = InlineKeyboard.generate_details_buttons(context.user_data, localization)
     await query.edit_message_text(new_text, reply_markup=keyboard)
 
-async def close_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    query = update.callback_query
+async def close_callback(update: Update, context: ContextTypes.DEFAULT_TYPE, query, localization) -> None:
     context.user_data[UserData.USED_BUTTONS] = []
-    await query.answer()
     await query.edit_message_reply_markup(reply_markup=None)
 
-CALLBACK_HANDLERS = {
+BUTTON_CALLBACK_HANDLERS = {
     Button.ALL_DEFINITIONS.callback_data: all_definitions_callback,
     Button.MORE_DETAILS.callback_data: more_details_callback,
     Button.SYNONYMS.callback_data: synonyms_callback,
     Button.ANTONYMS.callback_data: antonyms_callback,
-    Button.CLOSE.callback_data: close_callback,
     Button.RHYMES.callback_data: rhymes_callback,
+    Button.CLOSE.callback_data: close_callback,
 }
 
 async def callback_dispatcher(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
     data = query.data
 
-    handler = CALLBACK_HANDLERS.get(data)
-    if handler:
+    button_callback = BUTTON_CALLBACK_HANDLERS.get(data)
+    if button_callback:
         try:
-            await handler(update, context)
+            localization = select_localization(update, context)
+            query = update.callback_query
+            await query.answer()
+            await button_callback(update, context, query, localization)
         except Exception as e:
             logging.error(f"Error handling callback data '{data}': {e}")
             await close_previous_markup(update, context)
