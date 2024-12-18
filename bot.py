@@ -1,6 +1,7 @@
 import os
 import logging
 from dotenv import load_dotenv
+import re
 from telegram import Update, BotCommand
 from telegram.ext import (
     Application,
@@ -135,10 +136,18 @@ async def synonyms_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     query = update.callback_query
     await query.answer()
 
-    synonyms_list = words_api.get_synonym_list(context.user_data[UserData.DATA])
-    synonyms_text = ", ".join(synonyms_list) if synonyms_list else "-"
     existing_text = query.message.text
-    new_text = merge_with_query(existing_text, f"{localization.get(Phrases.SYNONYMS)}:\n{synonyms_text}")
+    synonyms_dict = words_api.get_synonym_dict(context.user_data[UserData.DATA])
+    
+    def replace_func(match: re.Match) -> str:
+        number = int(match.group(1))
+        synonyms = synonyms_dict.get(number, [])
+        if not synonyms:
+            return match.group(0)
+        synonyms_text = ", ".join(synonyms)
+        return f"{match.group(0)}\n   ≈ {synonyms_text}"
+
+    new_text = re.sub(r'(\d+)\.\s.*', replace_func, existing_text)
     context.user_data[UserData.USED_BUTTONS].append(Button.SYNONYMS.value)
     keyboard = InlineKeyboard.generate_details_buttons(context.user_data, localization)
     await query.edit_message_text(new_text, reply_markup=keyboard)
@@ -148,10 +157,18 @@ async def antonyms_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     query = update.callback_query
     await query.answer()
 
-    antonyms_list = words_api.get_antonym_list(context.user_data[UserData.DATA])
-    antonyms_text = ", ".join(antonyms_list) if antonyms_list else "-"
     existing_text = query.message.text
-    new_text = merge_with_query(existing_text, f"{localization.get(Phrases.ANTONYMS)}:\n{antonyms_text}")
+    antonyms_dict = words_api.get_antonym_dict(context.user_data[UserData.DATA])
+    
+    def replace_func(match: re.Match) -> str:
+        number = int(match.group(1))
+        antonyms = antonyms_dict.get(number, [])
+        if not antonyms:
+            return match.group(0)
+        antonyms_text = ", ".join(antonyms)
+        return f"{match.group(0)}\n   ≠ {antonyms_text}"
+    
+    new_text = re.sub(r'(\d+)\.\s.*', replace_func, existing_text)
     context.user_data[UserData.USED_BUTTONS].append(Button.ANTONYMS.value)
     keyboard = InlineKeyboard.generate_details_buttons(context.user_data, localization)
     await query.edit_message_text(new_text, reply_markup=keyboard)
