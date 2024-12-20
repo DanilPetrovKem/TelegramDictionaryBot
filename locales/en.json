@@ -17,7 +17,7 @@
     "COMMAND_LANG_RU": "Русский интерфейс",
     "COMMAND_HELP": "Show help message",
 
-    "WORD_NOT_FOUND": "I couldn't find that word in WordsAPI",
+    "WORD_NOT_FOUND": "I couldn't find this word or phrase",
     "NO_DEFINITIONS_FOUND": "The word exists but this dictionary does not provide its definition",
 
     "UNKNOWN_ACTION": "Unknown action",

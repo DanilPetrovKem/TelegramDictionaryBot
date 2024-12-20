@@ -4,7 +4,7 @@ import requests
 
 class WordsAPIClient:
     def __init__(self):
-        self.host = os.getenv("WORDSAPI_HOST")
+        self.host = "wordsapiv1.p.rapidapi.com"
         self.key = os.getenv("WORDSAPI_KEY")
         self.base_url = f"https://{self.host}/words"
         self.current_data = {}
