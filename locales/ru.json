@@ -4,7 +4,8 @@
     "CANCEL_MESSAGE": "Действие отменено",
 
     "MORE_DETAILS": "Подробнее",
-    "ALL_DEFINITIONS": "Все определения",
+    "MORE_DEFINITIONS": "+1",
+    "LESS_DEFINITIONS": "-1",
     "SYNONYMS": "Синонимы",
     "ANTONYMS": "Антонимы",
     "RHYMES": "Рифмы",

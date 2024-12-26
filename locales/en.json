@@ -4,7 +4,8 @@
     "CANCEL_MESSAGE": "Action cancelled",
 
     "MORE_DETAILS": "More details",
-    "ALL_DEFINITIONS": "All definitions",
+    "MORE_DEFINITIONS": "+1",
+    "LESS_DEFINITIONS": "-1",
     "SYNONYMS": "Synonyms",
     "ANTONYMS": "Antonyms",
     "RHYMES": "Rhymes",

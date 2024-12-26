@@ -5,6 +5,7 @@ class UserData(str, Enum):
     USED_BUTTONS = "used_buttons"
     LOCALE = "locale"
     LAST_MESSAGE_ID = "last_message_id"
+    DEFINITIONS_REQUESTED = "definitions_requested"
 
 # class MessageResult(str, Enum):
 #     OK = "ok"

@@ -3,6 +3,7 @@ import logging
 from dotenv import load_dotenv
 import telegram
 from telegram import Update, BotCommand
+from telegram.constants import ParseMode
 from telegram.ext import (
     Application,
     ApplicationBuilder,
@@ -46,39 +47,58 @@ async def provide_word_information(word: str, update: Update, context: ContextTy
     data = main_api.fetch_data(word)
     context.user_data[UserData.USED_BUTTONS] = []
     context.user_data[UserData.DATA] = data
+    context.user_data[UserData.DEFINITIONS_REQUESTED] = 1
 
     sent_message = await refresh_message(update, context, new=True)
     context.user_data[UserData.LAST_MESSAGE_ID] = sent_message.message_id
 
-def build_message_text(entries, chosen_lexeme, localization) -> tuple[str, int]:
+roman_numerals = {
+    1: "I",
+    2: "II",
+    3: "III",
+    4: "IV",
+    5: "V",
+    6: "VI",
+    7: "VII",
+    8: "VIII",
+    9: "IX",
+    10: "X",
+}
+
+def build_message_text(context: ContextTypes.DEFAULT_TYPE, entries, chosen_lexeme, localization) -> tuple[str, int]:
     message_parts = []
     lexeme_number = 0
+    definitions_requested = context.user_data.get(UserData.DEFINITIONS_REQUESTED, 1)
+
+    lexeme_amount = sum(len(entry.get("lexemes", [])) for entry in entries)
 
     word = entries[0].get("entry", "")
 
     message_parts.append(f"\"{word}\":\n\n")
 
     for etymology_idx, entry in enumerate(entries, start=1):
-        etymology_header = f"Etymology {etymology_idx}\n\n" if not chosen_lexeme else ""
+        etymology_header = f"<b><u>Etymology {roman_numerals.get(etymology_idx, etymology_idx)}</u></b>\n" if not chosen_lexeme and len(entries) > 1 else ""
         etymology_content = []
         for lexeme in entry.get("lexemes", []):
             lexeme_number += 1
             if chosen_lexeme and lexeme_number != chosen_lexeme:
                 continue
 
-            part_of_speech = lexeme.get("partOfSpeech", "-").title()
-            definition = lexeme.get("senses", [{}])[0].get("definition", "-")
-            
+            part_of_speech = f"{lexeme.get('partOfSpeech', '-').title()}"
+            senses = lexeme.get("senses", [])
+            lexeme_text = ""
+
             if not chosen_lexeme:
                 lexeme_text = (
-                    f"{lexeme_number}. {part_of_speech}\n"
-                    f"{definition}\n"
-                )
+                    f"<b>{lexeme_number}. </b>" if not chosen_lexeme else ""
+                ) + f"<b>{part_of_speech}</b>\n{senses[0].get('definition', '')}\n"
             else:
-                lexeme_text = (
-                    f"{part_of_speech}\n"
-                    f"{definition}\n"
-                )
+                for sense_number, sense in enumerate(senses[:definitions_requested], start=1):
+                    definition = sense.get("definition", "")
+                    lexeme_text += (
+                        f"<b>{sense_number}. {part_of_speech}</b>\n"
+                        f"{definition}\n"
+                    )
 
             etymology_content.append(lexeme_text + "\n")
 
@@ -86,9 +106,9 @@ def build_message_text(entries, chosen_lexeme, localization) -> tuple[str, int]:
             message_parts.append(etymology_header + "".join(etymology_content))
 
     complete_message = "".join(message_parts) or localization.get(Phrases.WORD_NOT_FOUND)
-    return complete_message, lexeme_number
+    return complete_message, lexeme_amount
 
-async def refresh_message(update: Update, context: ContextTypes.DEFAULT_TYPE, new: bool = False) -> None:
+async def refresh_message(update:  Update, context: ContextTypes.DEFAULT_TYPE, new: bool = False) -> None:
     localization = select_localization(update, context)
     used_buttons = context.user_data.get(UserData.USED_BUTTONS, [])
     data = context.user_data.get(UserData.DATA, {})
@@ -103,21 +123,39 @@ async def refresh_message(update: Update, context: ContextTypes.DEFAULT_TYPE, ne
             chosen_lexeme = int(button.split('-')[1])
             break
 
-    message_text, lexeme_amount = build_message_text(entries, chosen_lexeme, localization)
+    message_text, lexeme_amount = build_message_text(context, entries, chosen_lexeme, localization)
     inline_keyboard = InlineKeyboard.generate_details_buttons(context.user_data, localization, lexeme_amount)
 
     if new:
-        return await update.message.reply_text(message_text, reply_markup=inline_keyboard)
+        return await update.message.reply_text(message_text, reply_markup=inline_keyboard, parse_mode=ParseMode.HTML)
     else:
-        return await update.callback_query.edit_message_text(message_text, reply_markup=inline_keyboard)
+        return await update.callback_query.edit_message_text(message_text, reply_markup=inline_keyboard, parse_mode=ParseMode.HTML)
+
+async def more_definitions_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    context.user_data[UserData.DEFINITIONS_REQUESTED] += 1
+    await refresh_message(update, context)
+
+async def less_definitions_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if context.user_data[UserData.DEFINITIONS_REQUESTED] > 1:
+        context.user_data[UserData.DEFINITIONS_REQUESTED] -= 1
+
+    await refresh_message(update, context)
+
+SPECIAL_BUTTON_CALLBACKS = {
+    Button.MORE_DEFINITIONS: more_definitions_callback,
+    Button.LESS_DEFINITIONS: less_definitions_callback,
+}
 
 async def callback_dispatcher(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
     button = query.data
 
-    context.user_data[UserData.USED_BUTTONS].append(button)
     await query.answer()
-    await refresh_message(update, context)
+    if button in SPECIAL_BUTTON_CALLBACKS:
+        await SPECIAL_BUTTON_CALLBACKS[button](update, context)
+    else:
+        context.user_data[UserData.USED_BUTTONS].append(button)
+        await refresh_message(update, context)
 
 def get_localized_commands(localization: Localization) -> list:
     return [

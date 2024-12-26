@@ -1,4 +1,4 @@
-from enum import Enum
+from enum import Enum, auto
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 from localization import Localization
 from localization_keys import Phrases
@@ -9,15 +9,18 @@ class LexemeButton(str):
         return str.__new__(cls, f"lexeme-{lexeme_number}")
 
 class Button(str, Enum):
-    MORE_DETAILS = "more_details"
+    def _generate_next_value_(name, start, count, last_values):
+        return name.upper()
+    MORE_DETAILS = auto()
 
-    ALL_DEFINITIONS = "all_definitions"
+    MORE_DEFINITIONS = auto()
+    LESS_DEFINITIONS = auto()
 
-    SYNONYMS = "synonyms"
-    ANTONYMS = "antonyms"
-    RHYMES = "rhymes"
+    SYNONYMS = auto()
+    ANTONYMS = auto()
+    RHYMES = auto()
 
-    CLOSE = "close"
+    CLOSE = auto()
 
     @staticmethod
     def lexemes(lexeme_numbers: int) -> list[LexemeButton]:
@@ -35,6 +38,7 @@ class InlineKeyboard:
             row = []
             for button in button_list:
                 if button in Phrases:
+                    print("Using phrase key", button)
                     phrase_key = Phrases[button]
                     b_text = localization.get(phrase_key)
                 elif Button.is_lexeme(button):
@@ -50,23 +54,29 @@ class InlineKeyboard:
         used_buttons = user_data.get(UserData.USED_BUTTONS, [])
         button_structure = []
         
-        if not used_buttons:
+        if not used_buttons and lexeme_amount > 1:
+            print("Layer 1")
             # Layer 1
-            # User can restrict to a lexeme
+            # Buttons for choosing a specific lexeme
             if lexeme_amount > 1:
-                button_structure.append(Button.lexemes(lexeme_amount))
+                lexeme_buttons = Button.lexemes(lexeme_amount)
+                for i in range(0, len(lexeme_buttons), 5):
+                    button_structure.append(lexeme_buttons[i:i + 5])
+
             button_structure.append([Button.CLOSE])
 
-        # If any of the buttons is a LexemeButton
-        elif is_lexeme_chosen(used_buttons):
+        # If single lexeme
+        elif is_lexeme_chosen(used_buttons) or lexeme_amount == 1:
+            print("Layer 2")
             # Layer 2
             button_structure = [
-                [Button.ALL_DEFINITIONS],
+                [Button.LESS_DEFINITIONS, Button.MORE_DEFINITIONS],
                 [Button.SYNONYMS, Button.ANTONYMS],
                 [Button.RHYMES],
                 [Button.CLOSE]
             ]
         else:
+            print("FALLBACK LAYER")
             button_structure = []
 
         unused_buttons = []
