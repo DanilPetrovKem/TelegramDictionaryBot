@@ -3,3 +3,5 @@
 .DS_Store
 .vscode
 __pycache__
+scraper_tests/ball.json
+scraper_tests/white.json

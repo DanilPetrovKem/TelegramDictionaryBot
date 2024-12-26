@@ -21,11 +21,13 @@ from inline_keyboard import Button, InlineKeyboard
 from localization import Localization, select_localization
 from localization_keys import Phrases
 from enums import UserData
+from scraper import WiktionaryScraper
 import commands
 
-logging.basicConfig(level=logging.INFO, format='%(message)s')
+# logging.basicConfig(level=logging.WARNING, format='%(message)s')
 
 main_api = LinguaRobotAPIClient()
+wiki = WiktionaryScraper()
 
 async def plain_message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     word = update.message.text.strip().lower()
@@ -184,6 +186,8 @@ def main() -> None:
         .post_init(post_init)
         .build()
     )
+
+    wiki.fetch("ball")
     
     application.add_handler(CommandHandler("start", commands.start_command))
     application.add_handler(CommandHandler("help", commands.help_command))
