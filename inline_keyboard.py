@@ -15,6 +15,7 @@ class Button(str, Enum):
 
     MORE_DEFINITIONS = auto()
     LESS_DEFINITIONS = auto()
+    DEFINITIONS_BORDER = auto()
 
     SYNONYMS = auto()
     ANTONYMS = auto()
@@ -38,7 +39,6 @@ class InlineKeyboard:
             row = []
             for button in button_list:
                 if button in Phrases:
-                    print("Using phrase key", button)
                     phrase_key = Phrases[button]
                     b_text = localization.get(phrase_key)
                 elif Button.is_lexeme(button):
@@ -52,12 +52,15 @@ class InlineKeyboard:
     @staticmethod
     def generate_details_buttons(user_data, localization: Localization, lexeme_amount: int) -> InlineKeyboardMarkup:
         used_buttons = user_data.get(UserData.USED_BUTTONS, [])
-        button_structure = []
+        # Remove Button.DEFINITIONS_BORDER if it's there
+        if Button.DEFINITIONS_BORDER in used_buttons:
+            used_buttons.remove(Button.DEFINITIONS_BORDER)
         
+        button_structure = []
         if not used_buttons and lexeme_amount > 1:
-            print("Layer 1")
             # Layer 1
             # Buttons for choosing a specific lexeme
+            print("Layer 1")
             if lexeme_amount > 1:
                 lexeme_buttons = Button.lexemes(lexeme_amount)
                 for i in range(0, len(lexeme_buttons), 5):
@@ -67,16 +70,32 @@ class InlineKeyboard:
 
         # If single lexeme
         elif is_lexeme_chosen(used_buttons) or lexeme_amount == 1:
-            print("Layer 2")
             # Layer 2
+            print("Layer 2")
+            definitions_required = user_data.get(UserData.DEFINITIONS_REQUESTED, 1)
+            entry = user_data.get(UserData.DATA)
+            lexeme = entry.get_lexeme_by_index(get_lexeme_chosen_id(used_buttons))
+            definitions_amount = len(lexeme.senses)
+            definition_amount_buttons = []
+            print("Definitions amount:", definitions_amount)
+            print("Definitions required:", definitions_required)
+            if definitions_amount > 1:
+                if definitions_required != 1:
+                    definition_amount_buttons.append(Button.LESS_DEFINITIONS)
+                else:
+                    definition_amount_buttons.append(Button.DEFINITIONS_BORDER)
+                if definitions_required != definitions_amount:
+                    definition_amount_buttons.append(Button.MORE_DEFINITIONS)
+                else:
+                    definition_amount_buttons.append(Button.DEFINITIONS_BORDER)
             button_structure = [
-                [Button.LESS_DEFINITIONS, Button.MORE_DEFINITIONS],
+                definition_amount_buttons,
                 [Button.SYNONYMS, Button.ANTONYMS],
                 [Button.RHYMES],
                 [Button.CLOSE]
             ]
         else:
-            print("FALLBACK LAYER")
+            print("FALLBACK")
             button_structure = []
 
         unused_buttons = []
@@ -89,6 +108,12 @@ class InlineKeyboard:
         if len(unused_buttons) == 1 and len(unused_buttons[0]) == 1:
             unused_buttons = []
         return InlineKeyboard.generate(unused_buttons, localization)
-    
+
 def is_lexeme_chosen(used_buttons) -> bool:
     return any(Button.is_lexeme(button) for button in used_buttons)
+
+def get_lexeme_chosen_id(used_buttons) -> int:
+    for button in used_buttons:
+        if Button.is_lexeme(button):
+            return int(button.split('-')[1]) - 1
+    return None

@@ -13,6 +13,7 @@ class Phrases(Enum):
     MORE_DETAILS = auto()
     MORE_DEFINITIONS = auto()
     LESS_DEFINITIONS = auto()
+    DEFINITIONS_BORDER = auto()
     SYNONYMS = auto()
     ANTONYMS = auto()
     RHYMES = auto()

@@ -2,25 +2,27 @@ import requests
 from bs4 import BeautifulSoup
 import re
 import json
+import os
+from Entry import Entry, Etymology, Lexeme, Sense
 
 class WiktionaryScraper:
     entries_folder = "entries"
 
-    def fetch(self, entry) -> dict:
+    def fetch(self, entry) -> Entry:
         url = f"https://en.wiktionary.org/wiki/{entry}"
         response = requests.get(url)
         if response.status_code == 200:
             soup = BeautifulSoup(response.text, 'html.parser')
-            result = self.process_full_page(soup)
-            return result
+            entry = self.process_full_page(soup)
+            return entry
         else:
             print(f"Failed to retrieve the page for {entry}")
 
-    def process_full_page(self, soup: BeautifulSoup):
+    def process_full_page(self, soup: BeautifulSoup) -> Entry:
         content = self.extract_content(soup)
         english_section = self.extract_english_section(content)
-        result_dict = self.convert_to_dict(english_section)
-        return result_dict
+        entry = self.convert_to_object(english_section)
+        return entry
 
     def extract_content(self, soup: BeautifulSoup):
         content = soup.find('div', class_='mw-content-ltr mw-parser-output')
@@ -41,79 +43,58 @@ class WiktionaryScraper:
             if sibling.name == "div" and "mw-heading2" in sibling.get("class", []):
                 break
             content_tags.append(sibling)
-        parent = BeautifulSoup("<div></div>", "html.parser")
-        container = parent.div
+        english_section = BeautifulSoup("<div></div>", "html.parser")
+        container = english_section.div
         for tag in content_tags:
             container.append(tag)
-        return parent
+        # self.write_to_html(english_section, "english_section")
+        return english_section
     
-    def convert_to_dict(self, soup: BeautifulSoup) -> dict:
-        result_dict = {}
-        result_dict["etymologies"] = self.process_etymologies(soup)
-        return result_dict
+    def convert_to_object(self, soup: BeautifulSoup) -> Entry:
+        etymology_contents = []
+        entry = Entry()
 
-    def process_etymologies(self, soup: BeautifulSoup):
-        print(soup)
-        lexemes_list = []
-        etymology_divs = []
+        etymology_headings = []
         headings = soup.find_all('div', class_='mw-heading mw-heading3')
         for heading in headings:
-            if heading.find(id=re.compile(r'^Etymology')):
-                etymology = heading
-                etymology_divs.append(etymology)
-
-        if len(etymology_divs) == 1:
-            print("Single etymology")
-            etymology_content = BeautifulSoup("<div></div>", "html.parser")
-            container = etymology_content.div
-            print(etymology_divs[0].find_next_siblings())
-            for tag in etymology_divs[0].find_next_siblings():
-                if tag.name == "div" and "mw-heading3" in tag.get("class", []):
-                    break
-                container.append(tag)
-            lexemes = self.process_etymology(etymology_content, single=True)
-            lexemes_list.append(lexemes)
-            return lexemes_list
-        else:
-            print("Multiple etymologies")
-            for etymology in etymology_divs:
-                content_tags = []
-                print(etymology.find_next_siblings())
-                for sibling in etymology.find_next_siblings():
-                    if sibling.name == "div" and "mw-heading3" in sibling.get("class", []):
-                        break
-                    content_tags.append(sibling)
+            if heading.text.startswith("Etymology"):
+                etymology_headings.append(heading)
+        
+        for etymology_heading in etymology_headings:
                 etymology_content = BeautifulSoup("<div></div>", "html.parser")
-                container = etymology_content.div
-                for tag in content_tags:
-                    container.append(tag)
-                lexemes = self.process_etymology(etymology_content)
-                lexemes_list.append(lexemes)
-
-            return lexemes_list
-
-
-    def process_etymology(self, soup: BeautifulSoup, single=False) -> dict:
-        print(soup)
-        lexemes = []
-        # Find divs with mw-heading mw-heading* class
-        if single:
-            lexemes_divs = soup.find_all('div', class_='mw-heading mw-heading3')
+                for sibling in etymology_heading.find_next_siblings():
+                    if sibling.name == "div" and "mw-heading3" in sibling.get("class", []) and sibling.text.startswith("Etymology"):
+                        break
+                    etymology_content.div.append(sibling)
+                etymology_contents.append(etymology_content)
+        
+        if len(etymology_contents) == 1:
+            etymology = self.process_etymology(etymology_contents[0], single=True)
+            entry.etymologies.append(etymology)
         else:
-            lexemes_divs = soup.find_all('div', class_='mw-heading mw-heading4')
+            for etymology_content in etymology_contents:
+                etymology = self.process_etymology(etymology_content)
+                entry.etymologies.append(etymology)
 
+        return entry
+
+
+    def process_etymology(self, soup: BeautifulSoup, single=False) -> Etymology:
+        etymology = Etymology()
+        lexeme_div_class = "mw-heading mw-heading3" if single else "mw-heading mw-heading4"
+        POS_tag = "h3" if single else "h4"
+        lexemes_divs = soup.find_all('div', class_=lexeme_div_class)
         for lexeme_div in lexemes_divs:
-            # Find next class headword-line
             headword = lexeme_div.find_next(class_="headword-line")
             if headword == None: continue
+            if lexeme_div.find(POS_tag).text.lower() == "pronunciation": continue
 
-            lexeme_dict = {}
-            lexeme_dict["lemma"] = headword.strong.text
-            lexeme_dict["partOfSpeech"] = lexeme_div.h4.text.lower()
+            lexeme = Lexeme()
+            lexeme.lemma = headword.strong.text
+            lexeme.part_of_speech = lexeme_div.find(POS_tag).text.lower()
 
             sense_list = lexeme_div.find_next("ol")
             senses = sense_list.find_all("li")
-            lexeme_dict["senses"] = []
             for sense in senses:
                 if not sense.text: continue
                 for child in sense.children:
@@ -121,22 +102,41 @@ class WiktionaryScraper:
                         child.decompose()
                 definition_text = sense.text.split("\n")[0].strip()
                 definition_text = self.format(definition_text)
-                lexeme_dict["senses"].append({"definition": definition_text})
+                sense_object = Sense()
+                sense_object.definition = definition_text
+                lexeme.senses.append(sense_object)
 
-            lexemes.append(lexeme_dict)
+            etymology.lexemes.append(lexeme)
 
-        return lexemes
+        return etymology
     
     def format(self, text):
         text = text.replace("\u00a0", " ")
+        text = text.replace("\u201c", "\"")
+        text = text.replace("\u201d", "\"")
+        text = re.sub(r"\[\d+\]", "", text)
         return text
+
+    def write_to_html(self, soup, filename):
+        os.makedirs(self.entries_folder, exist_ok=True)
+        with open(f"{self.entries_folder}/{filename}.html", "w", encoding="utf-8") as f:
+            f.write(soup.prettify())
+    
+    def write_to_json(self, data, filename):
+        os.makedirs(self.entries_folder, exist_ok=True)
+        with open(f"{self.entries_folder}/{filename}.json", "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=4)
+
+    def test_fetch(self, entry):
+        result = self.fetch(entry)
+        # self.write_to_json(result, entry)
+
 
 if __name__ == "__main__":
     scraper = WiktionaryScraper()
-    # ball = scraper.fetch("ball")
-    # with open("scraper_tests/ball.json", "w", encoding="utf-8") as f:
-    #     json.dump(ball, f, indent=4)
-
-    white = scraper.fetch("white")
-    with open("scraper_tests/white.json", "w", encoding="utf-8") as f:
-        json.dump(white, f, indent=4)
+    scraper.test_fetch("ball")
+    # scraper.test_fetch("white")
+    # scraper.test_fetch("shove")
+    # scraper.test_fetch("run")
+    # scraper.test_fetch("jump")
+    # scraper.test_fetch("cow")

@@ -15,18 +15,15 @@ from telegram.ext import (
     InlineQueryHandler,
     filters
 )
-from words_api_client import WordsAPIClient
-from lingua_robot_api import LinguaRobotAPIClient
 from inline_keyboard import Button, InlineKeyboard
 from localization import Localization, select_localization
 from localization_keys import Phrases
 from enums import UserData
 from scraper import WiktionaryScraper
+from Entry import Entry, Etymology, Lexeme, Sense
 import commands
 
 # logging.basicConfig(level=logging.WARNING, format='%(message)s')
-
-main_api = LinguaRobotAPIClient()
 wiki = WiktionaryScraper()
 
 async def plain_message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -46,7 +43,7 @@ async def close_previous_markup(update: Update, context: ContextTypes.DEFAULT_TY
             logging.warning(f"Failed to edit previous message: {e}")
 
 async def provide_word_information(word: str, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    data = main_api.fetch_data(word)
+    data = wiki.fetch(word)
     context.user_data[UserData.USED_BUTTONS] = []
     context.user_data[UserData.DATA] = data
     context.user_data[UserData.DEFINITIONS_REQUESTED] = 1
@@ -67,40 +64,38 @@ roman_numerals = {
     10: "X",
 }
 
-def build_message_text(context: ContextTypes.DEFAULT_TYPE, entries, chosen_lexeme, localization) -> tuple[str, int]:
+def build_message_text(context: ContextTypes.DEFAULT_TYPE, entry: Entry, chosen_lexeme_id, localization: Localization) -> tuple[str, int]:
     message_parts = []
     lexeme_number = 0
     definitions_requested = context.user_data.get(UserData.DEFINITIONS_REQUESTED, 1)
 
-    lexeme_amount = sum(len(entry.get("lexemes", [])) for entry in entries)
-
-    word = entries[0].get("entry", "")
+    lexeme_amount = entry.lexeme_amount()
+    word = entry.etymologies[0].lexemes[0].lemma
 
     message_parts.append(f"\"{word}\":\n\n")
 
-    for etymology_idx, entry in enumerate(entries, start=1):
-        etymology_header = f"<b><u>Etymology {roman_numerals.get(etymology_idx, etymology_idx)}</u></b>\n" if not chosen_lexeme and len(entries) > 1 else ""
+    for etymology_idx, etymology in enumerate(entry.etymologies, start=1):
+        etymology_header = f"<b><u>Etymology {roman_numerals.get(etymology_idx, etymology_idx)}</u></b>\n" if not chosen_lexeme_id and len(entry.etymologies) > 1 else ""
+        if chosen_lexeme_id:
+            chosen_lexeme = entry.get_lexeme_by_index(chosen_lexeme_id - 1)
+            etymology_header += f"<b>{chosen_lexeme.part_of_speech.title()}</b>\n"
+        
         etymology_content = []
-        for lexeme in entry.get("lexemes", []):
+        for lexeme in etymology.lexemes:
             lexeme_number += 1
-            if chosen_lexeme and lexeme_number != chosen_lexeme:
+            if chosen_lexeme_id and lexeme_number != chosen_lexeme_id:
                 continue
 
-            part_of_speech = f"{lexeme.get('partOfSpeech', '-').title()}"
-            senses = lexeme.get("senses", [])
+            part_of_speech = f"{lexeme.part_of_speech.title()}"
             lexeme_text = ""
 
-            if not chosen_lexeme:
+            if not chosen_lexeme_id:
                 lexeme_text = (
-                    f"<b>{lexeme_number}. </b>" if not chosen_lexeme else ""
-                ) + f"<b>{part_of_speech}</b>\n{senses[0].get('definition', '')}\n"
+                    f"<b>{lexeme_number}. </b>" if not chosen_lexeme_id else ""
+                ) + f"<b>{part_of_speech}</b>\n{lexeme.senses[0].definition}\n"
             else:
-                for sense_number, sense in enumerate(senses[:definitions_requested], start=1):
-                    definition = sense.get("definition", "")
-                    lexeme_text += (
-                        f"<b>{sense_number}. {part_of_speech}</b>\n"
-                        f"{definition}\n"
-                    )
+                for sense_number, sense in enumerate(lexeme.senses[:definitions_requested], start=1):
+                    lexeme_text += f"<b>{sense_number}.</b> {sense.definition}\n"
 
             etymology_content.append(lexeme_text + "\n")
 
@@ -113,10 +108,9 @@ def build_message_text(context: ContextTypes.DEFAULT_TYPE, entries, chosen_lexem
 async def refresh_message(update:  Update, context: ContextTypes.DEFAULT_TYPE, new: bool = False) -> None:
     localization = select_localization(update, context)
     used_buttons = context.user_data.get(UserData.USED_BUTTONS, [])
-    data = context.user_data.get(UserData.DATA, {})
+    entry: Entry = context.user_data.get(UserData.DATA, Entry())
 
-    entries = data.get("entries", [])
-    if not entries:
+    if not entry.etymologies:
         return await update.message.reply_text(localization.get(Phrases.WORD_NOT_FOUND))
 
     chosen_lexeme = None
@@ -125,7 +119,7 @@ async def refresh_message(update:  Update, context: ContextTypes.DEFAULT_TYPE, n
             chosen_lexeme = int(button.split('-')[1])
             break
 
-    message_text, lexeme_amount = build_message_text(context, entries, chosen_lexeme, localization)
+    message_text, lexeme_amount = build_message_text(context, entry, chosen_lexeme, localization)
     inline_keyboard = InlineKeyboard.generate_details_buttons(context.user_data, localization, lexeme_amount)
 
     if new:
@@ -135,6 +129,7 @@ async def refresh_message(update:  Update, context: ContextTypes.DEFAULT_TYPE, n
 
 async def more_definitions_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     context.user_data[UserData.DEFINITIONS_REQUESTED] += 1
+    
     await refresh_message(update, context)
 
 async def less_definitions_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -143,9 +138,14 @@ async def less_definitions_callback(update: Update, context: ContextTypes.DEFAUL
 
     await refresh_message(update, context)
 
+async def close_markup(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    context.user_data[UserData.USED_BUTTONS] = []
+    await update.callback_query.edit_message_reply_markup(reply_markup=None)
+
 SPECIAL_BUTTON_CALLBACKS = {
     Button.MORE_DEFINITIONS: more_definitions_callback,
     Button.LESS_DEFINITIONS: less_definitions_callback,
+    Button.CLOSE: close_markup,
 }
 
 async def callback_dispatcher(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -187,8 +187,6 @@ def main() -> None:
         .build()
     )
 
-    wiki.fetch("ball")
-    
     application.add_handler(CommandHandler("start", commands.start_command))
     application.add_handler(CommandHandler("help", commands.help_command))
     application.add_handler(CommandHandler("cancel", commands.cancel_command))
