@@ -13,7 +13,12 @@ class Lexeme:
 class Sense:
     def __init__(self):
         self.definition: str = ""
+        self.subsenses: List[Sense] = []
+        self.examples: List[str] = []
 
+# class Subsense:
+#     def __init__(self):
+#         self.definition: str = ""
 
 class Entry:
     def __init__(self):

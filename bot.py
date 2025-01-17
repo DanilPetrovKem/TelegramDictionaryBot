@@ -67,7 +67,9 @@ roman_numerals = {
 def build_message_text(context: ContextTypes.DEFAULT_TYPE, entry: Entry, chosen_lexeme_id, localization: Localization) -> tuple[str, int]:
     message_parts = []
     lexeme_number = 0
+    buttons_used = context.user_data.get(UserData.USED_BUTTONS, [])
     definitions_requested = context.user_data.get(UserData.DEFINITIONS_REQUESTED, 1)
+    example_requested = Button.EXAMPLES in buttons_used
 
     lexeme_amount = entry.lexeme_amount()
     word = entry.etymologies[0].lexemes[0].lemma
@@ -89,14 +91,27 @@ def build_message_text(context: ContextTypes.DEFAULT_TYPE, entry: Entry, chosen_
             part_of_speech = f"{lexeme.part_of_speech.title()}"
             lexeme_text = ""
 
+            # LEXEME CHOSEN
             if not chosen_lexeme_id:
-                lexeme_text = (
+                lexeme_text += (
                     f"<b>{lexeme_number}. </b>" if not chosen_lexeme_id else ""
                 ) + f"<b>{part_of_speech}</b>\n{lexeme.senses[0].definition}\n"
             else:
+                # LEXEME NOT CHOSEN
                 for sense_number, sense in enumerate(lexeme.senses[:definitions_requested], start=1):
                     lexeme_text += f"<b>{sense_number}.</b> {sense.definition}\n"
-
+                    if example_requested and sense.examples:
+                        if example_requested:
+                            for example in sense.examples:
+                                lexeme_text += f"       <i>{example}</i>\n"
+                    if sense.subsenses:
+                        for subsense_number, subsense in enumerate(sense.subsenses, start=1):
+                            lexeme_text += f"       <b>{subsense_number}.</b> {subsense.definition}\n"
+                            if example_requested:
+                                for example in subsense.examples:
+                                    lexeme_text += f"           <i>{example}</i>\n"
+                    lexeme_text += "\n"
+            
             etymology_content.append(lexeme_text + "\n")
 
         if etymology_content:
@@ -142,10 +157,14 @@ async def close_markup(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     context.user_data[UserData.USED_BUTTONS] = []
     await update.callback_query.edit_message_reply_markup(reply_markup=None)
 
+async def definitions_border_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    pass
+
 SPECIAL_BUTTON_CALLBACKS = {
     Button.MORE_DEFINITIONS: more_definitions_callback,
     Button.LESS_DEFINITIONS: less_definitions_callback,
     Button.CLOSE: close_markup,
+    Button.DEFINITIONS_BORDER: definitions_border_callback,
 }
 
 async def callback_dispatcher(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:

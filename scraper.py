@@ -97,14 +97,52 @@ class WiktionaryScraper:
             senses = sense_list.find_all("li")
             for sense in senses:
                 if not sense.text: continue
+                sense_object = Sense()
+
                 for child in sense.children:
-                    if child.name == "dl" or child.name == "ul" or child.name == "ol":
+                    # Subsenses
+                    if child.name == "ol":
+                        subsenses = child.find_all("li")
+                        for subsense in subsenses:
+                            for subsense_child in subsense.children:
+                                if subsense_child.name == "ul":
+                                    subsense_child.decompose()
+                            if not subsense.text: continue
+                            subsense_text = subsense.text.split("\n")[0].strip()
+                            subsense_text = self.format(subsense_text)
+                            subsense_object = Sense()
+                            subsense_object.definition = subsense_text
+                            sense_object.subsenses.append(subsense_object)
+                            
+                            # Examples
+                            examples = subsense.find_all("i", class_="Latn mention e-example")
+                            if examples:
+                                for example in examples:
+                                    example_text = example.text.strip()
+                                    example_text = re.sub(r"\n", "", example_text)
+                                    subsense_object.examples.append(example_text)
                         child.decompose()
+
+                    # Examples
+                    if child.name == "dl":
+                        if child.find("dd"):
+                            examples = child.find_all("i", class_="Latn mention e-example")
+                            if examples:
+                                for example in examples:
+                                    example_text = example.text.strip()
+                                    example_text = re.sub(r"\n", "", example_text)
+                                    sense_object.examples.append(example_text)
+                        child.decompose()
+
+                    elif child.name == "ul":
+                        child.decompose()
+
                 definition_text = sense.text.split("\n")[0].strip()
                 definition_text = self.format(definition_text)
-                sense_object = Sense()
                 sense_object.definition = definition_text
                 lexeme.senses.append(sense_object)
+
+                # If there is an <ol> tag, it means there are subsenses, go through each <li> of the <ol>
 
             etymology.lexemes.append(lexeme)
 
@@ -129,12 +167,14 @@ class WiktionaryScraper:
 
     def test_fetch(self, entry):
         result = self.fetch(entry)
+        return result
         # self.write_to_json(result, entry)
 
 
 if __name__ == "__main__":
     scraper = WiktionaryScraper()
-    scraper.test_fetch("ball")
+    ball = scraper.test_fetch("ball")
+    print(ball)
     # scraper.test_fetch("white")
     # scraper.test_fetch("shove")
     # scraper.test_fetch("run")

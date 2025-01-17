@@ -17,6 +17,7 @@ class Button(str, Enum):
     LESS_DEFINITIONS = auto()
     DEFINITIONS_BORDER = auto()
 
+    EXAMPLES = auto()
     SYNONYMS = auto()
     ANTONYMS = auto()
     RHYMES = auto()
@@ -60,7 +61,7 @@ class InlineKeyboard:
         if not used_buttons and lexeme_amount > 1:
             # Layer 1
             # Buttons for choosing a specific lexeme
-            print("Layer 1")
+            # print("Layer 1")
             if lexeme_amount > 1:
                 lexeme_buttons = Button.lexemes(lexeme_amount)
                 for i in range(0, len(lexeme_buttons), 5):
@@ -71,14 +72,12 @@ class InlineKeyboard:
         # If single lexeme
         elif is_lexeme_chosen(used_buttons) or lexeme_amount == 1:
             # Layer 2
-            print("Layer 2")
+            # print("Layer 2")
             definitions_required = user_data.get(UserData.DEFINITIONS_REQUESTED, 1)
             entry = user_data.get(UserData.DATA)
             lexeme = entry.get_lexeme_by_index(get_lexeme_chosen_id(used_buttons))
             definitions_amount = len(lexeme.senses)
             definition_amount_buttons = []
-            print("Definitions amount:", definitions_amount)
-            print("Definitions required:", definitions_required)
             if definitions_amount > 1:
                 if definitions_required != 1:
                     definition_amount_buttons.append(Button.LESS_DEFINITIONS)
@@ -91,11 +90,11 @@ class InlineKeyboard:
             button_structure = [
                 definition_amount_buttons,
                 [Button.SYNONYMS, Button.ANTONYMS],
-                [Button.RHYMES],
+                [Button.EXAMPLES],
                 [Button.CLOSE]
             ]
         else:
-            print("FALLBACK")
+            # print("FALLBACK")
             button_structure = []
 
         unused_buttons = []
