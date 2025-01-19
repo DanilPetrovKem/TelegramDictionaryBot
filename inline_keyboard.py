@@ -89,7 +89,7 @@ class InlineKeyboard:
                     definition_amount_buttons.append(Button.DEFINITIONS_BORDER)
             button_structure = [
                 definition_amount_buttons,
-                [Button.SYNONYMS, Button.ANTONYMS],
+                # [Button.SYNONYMS, Button.ANTONYMS],
                 [Button.EXAMPLES],
                 [Button.CLOSE]
             ]
