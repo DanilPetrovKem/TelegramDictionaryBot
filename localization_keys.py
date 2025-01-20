@@ -1,14 +1,20 @@
 from enum import Enum, auto
 
 class Phrases(Enum):
+    def _generate_next_value_(name, start, count, last_values):
+        return name.upper()
+
     # Messages
     START_MESSAGE = auto()
     HELP_MESSAGE = auto()
     CANCEL_MESSAGE = auto()
-    
+
     # Buttons
     MORE_DETAILS = auto()
-    ALL_DEFINITIONS = auto()
+    MORE_DEFINITIONS = auto()
+    LESS_DEFINITIONS = auto()
+    DEFINITIONS_BORDER = auto()
+    EXAMPLES = auto()
     SYNONYMS = auto()
     ANTONYMS = auto()
     RHYMES = auto()
@@ -16,7 +22,7 @@ class Phrases(Enum):
 
     # Command replies
     LANGUAGE_CHANGED = auto()
-    
+
     # Command annotations
     COMMAND_RANDOM = auto()
     COMMAND_LANG_EN = auto()
@@ -26,7 +32,7 @@ class Phrases(Enum):
     # Errors
     WORD_NOT_FOUND = auto()
     NO_DEFINITIONS_FOUND = auto()
-    
+
     UNKNOWN_ACTION = auto()
     INVALID_COMMAND_USAGE = auto()
     INVALID_LANGUAGE = auto()
