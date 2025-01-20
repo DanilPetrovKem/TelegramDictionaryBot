@@ -78,8 +78,11 @@ class WiktionaryScraper:
 
         return entry
 
+    
 
     def process_etymology(self, soup: BeautifulSoup, single=False) -> Etymology:
+        exclude_headings = ["alternative forms", "pronunciation", "anagrams", "see also", "related terms", "derived terms"]
+
         etymology = Etymology()
         lexeme_div_class = "mw-heading mw-heading3" if single else "mw-heading mw-heading4"
         POS_tag = "h3" if single else "h4"
@@ -87,7 +90,7 @@ class WiktionaryScraper:
         for lexeme_div in lexemes_divs:
             headword = lexeme_div.find_next(class_="headword-line")
             if headword == None: continue
-            if lexeme_div.find(POS_tag).text.lower() == "pronunciation": continue
+            if lexeme_div.find(POS_tag).text.lower() in exclude_headings: continue
 
             lexeme = Lexeme()
             lexeme.lemma = headword.strong.text
@@ -173,7 +176,7 @@ class WiktionaryScraper:
 
 if __name__ == "__main__":
     scraper = WiktionaryScraper()
-    ball = scraper.test_fetch("ball")
+    ball = scraper.test_fetch("flower")
     print(ball)
     # scraper.test_fetch("white")
     # scraper.test_fetch("shove")

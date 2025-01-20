@@ -76,6 +76,7 @@ class InlineKeyboard:
             definitions_required = user_data.get(UserData.DEFINITIONS_REQUESTED, 1)
             entry = user_data.get(UserData.DATA)
             lexeme = entry.get_lexeme_by_index(get_lexeme_chosen_id(used_buttons))
+            examples_available = any(sense.examples for sense in lexeme.senses[:definitions_required])
             definitions_amount = len(lexeme.senses)
             definition_amount_buttons = []
             if definitions_amount > 1:
@@ -90,7 +91,7 @@ class InlineKeyboard:
             button_structure = [
                 definition_amount_buttons,
                 # [Button.SYNONYMS, Button.ANTONYMS],
-                [Button.EXAMPLES],
+                [Button.EXAMPLES] if examples_available else [],    
                 [Button.CLOSE]
             ]
         else:
