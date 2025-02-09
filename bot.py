@@ -1,7 +1,6 @@
 import os
 import logging
 from dotenv import load_dotenv
-import telegram
 from telegram import Update, BotCommand
 from telegram.constants import ParseMode
 from telegram.ext import (
@@ -19,12 +18,12 @@ from inline_keyboard import Button, InlineKeyboard
 from localization import Localization, select_localization
 from localization_keys import Phrases
 from enums import UserData
-from scraper import WiktionaryScraper
-from Entry import Entry, Etymology, Lexeme, Sense
+from wikked_api import WikkedAPI
+from Entry import Entry
 import commands
 
 # logging.basicConfig(level=logging.WARNING, format='%(message)s')
-wiki = WiktionaryScraper()
+wikked_api = WikkedAPI()
 
 async def plain_message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     word = update.message.text.strip().lower()
@@ -42,10 +41,10 @@ async def close_previous_markup(update: Update, context: ContextTypes.DEFAULT_TY
         except Exception as e:
             logging.warning(f"Failed to edit previous message: {e}")
 
-async def provide_word_information(word: str, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    data = wiki.fetch(word)
+async def provide_word_information(requested_entry: str, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    entry = wikked_api.fetch(requested_entry)
     context.user_data[UserData.USED_BUTTONS] = []
-    context.user_data[UserData.DATA] = data
+    context.user_data[UserData.ENTRY] = entry
     context.user_data[UserData.DEFINITIONS_REQUESTED] = 1
 
     sent_message = await refresh_message(update, context, new=True)
@@ -123,7 +122,7 @@ def build_message_text(context: ContextTypes.DEFAULT_TYPE, entry: Entry, chosen_
 async def refresh_message(update:  Update, context: ContextTypes.DEFAULT_TYPE, new: bool = False) -> None:
     localization = select_localization(update, context)
     used_buttons = context.user_data.get(UserData.USED_BUTTONS, [])
-    entry: Entry = context.user_data.get(UserData.DATA, Entry())
+    entry: Entry = context.user_data.get(UserData.ENTRY, Entry())
 
     if not entry.etymologies:
         return await update.message.reply_text(localization.get(Phrases.WORD_NOT_FOUND))
@@ -197,6 +196,13 @@ def main() -> None:
     Localization.validate_localizations()
     load_dotenv()
     token = os.getenv("TELEGRAM_BOT_TOKEN")
+    if not token:
+        raise ValueError("Bot token not found. Please set TELEGRAM_BOT_TOKEN in your environment variables.")
+
+    PORT = int(os.environ.get("PORT", 8000))
+    HEROKU_APP_NAME = os.getenv("HEROKU_APP_NAME", "your-heroku-app-name")
+    WEBHOOK_URL = f"https://{HEROKU_APP_NAME}.herokuapp.com/{token}"
+    debug = os.getenv("DEBUG", False)
     if not token: raise ValueError("Bot token not found. Please set TELEGRAM_BOT_TOKEN.")
 
     application = (
@@ -216,7 +222,18 @@ def main() -> None:
     application.add_handler(CallbackQueryHandler(callback_dispatcher))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, plain_message_handler), group=1)
 
-    application.run_polling()
+    if debug:
+        print("Running in polling mode")
+        application.run_polling()
+    else:
+        print(f"Webhook URL: {WEBHOOK_URL}")
+        application.run_webhook(
+            listen="0.0.0.0",
+            port=PORT,
+            url_path=token,
+            webhook_url=WEBHOOK_URL
+        )
+
 
 if __name__ == "__main__":
     main()

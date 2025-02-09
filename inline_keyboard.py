@@ -74,7 +74,7 @@ class InlineKeyboard:
             # Layer 2
             # print("Layer 2")
             definitions_required = user_data.get(UserData.DEFINITIONS_REQUESTED, 1)
-            entry = user_data.get(UserData.DATA)
+            entry = user_data.get(UserData.ENTRY)
             lexeme = entry.get_lexeme_by_index(get_lexeme_chosen_id(used_buttons))
             examples_available = any(sense.examples for sense in lexeme.senses[:definitions_required])
             definitions_amount = len(lexeme.senses)
