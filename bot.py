@@ -69,7 +69,7 @@ roman_numerals = {
 
 def build_message_text(context: ContextTypes.DEFAULT_TYPE, entry: Entry, chosen_lexeme_id, localization: Localization) -> tuple[str, int]:
     SUBSENSE_MAX_DEPTH = 5  # Adjustable max recursion depth
-    def render_sense(sense, level, example_requested, indent_base="       "):
+    def render_sense(sense, level, example_requested, synonyms_requested, antonyms_requested, collocations_requested, indent_base="       "):
         indent = indent_base * level
         # Format sense definition (including labels if any)
         definition = f"({', '.join(sense.labels)}) {sense.definition}" if sense.labels else sense.definition
@@ -77,9 +77,15 @@ def build_message_text(context: ContextTypes.DEFAULT_TYPE, entry: Entry, chosen_
         if example_requested and sense.examples:
             for example in sense.examples:
                 result += f"{indent}{indent_base}<i>{example}</i>\n"
+        if synonyms_requested and sense.synonyms:
+            result += f"{indent}{indent_base}<i><b>≈</b> {', '.join(sense.synonyms)}</i>\n"
+        if antonyms_requested and sense.antonyms:
+            result += f"{indent}{indent_base}<i><b>≠</b> {', '.join(sense.antonyms)}</i>\n"
+        if collocations_requested and sense.collocations:
+            result += f"{indent}{indent_base}<i>Collocations: {', '.join(sense.collocations)}</i>\n"
         if level < SUBSENSE_MAX_DEPTH:
             for idx, subsense in enumerate(sense.subsenses, start=1):
-                result += f"{indent}{indent_base}<b>{idx}.</b> " + render_sense(subsense, level + 1, example_requested, indent_base)
+                result += f"{indent}{indent_base}<b>{idx}.</b> " + render_sense(subsense, level + 1, example_requested, synonyms_requested, antonyms_requested, collocations_requested, indent_base)
         return result
 
     message_parts = []
@@ -87,6 +93,9 @@ def build_message_text(context: ContextTypes.DEFAULT_TYPE, entry: Entry, chosen_
     buttons_used = context.user_data.get(UserData.USED_BUTTONS, [])
     definitions_requested = context.user_data.get(UserData.DEFINITIONS_REQUESTED, 1)
     example_requested = Button.EXAMPLES in buttons_used
+    synonyms_requested = Button.SYNONYMS in buttons_used
+    antonyms_requested = Button.ANTONYMS in buttons_used
+    collocations_requested = Button.COLLOCATIONS in buttons_used
 
     lexeme_amount = entry.lexeme_amount()
     single_lexeme = lexeme_amount == 1
@@ -115,7 +124,7 @@ def build_message_text(context: ContextTypes.DEFAULT_TYPE, entry: Entry, chosen_
                 lexeme_text += f"<b>{lexeme_number}. </b><b>{part_of_speech}</b>\n{definition}\n"
             else:
                 for sense_number, sense in enumerate(lexeme.senses[:definitions_requested], start=1):
-                    lexeme_text += f"<b>{sense_number}.</b> " + render_sense(sense, 0, example_requested) + "\n"
+                    lexeme_text += f"<b>{sense_number}.</b> " + render_sense(sense, 0, example_requested, synonyms_requested, antonyms_requested, collocations_requested) + "\n"
             etymology_content.append(lexeme_text + "\n")
 
         if etymology_content:

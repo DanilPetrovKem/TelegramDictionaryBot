@@ -17,6 +17,7 @@ class Phrases(Enum):
     EXAMPLES = auto()
     SYNONYMS = auto()
     ANTONYMS = auto()
+    COLLOCATIONS = auto()
     RHYMES = auto()
     CLOSE = auto()
 

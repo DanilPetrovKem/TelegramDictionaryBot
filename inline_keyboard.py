@@ -20,6 +20,7 @@ class Button(str, Enum):
     EXAMPLES = auto()
     SYNONYMS = auto()
     ANTONYMS = auto()
+    COLLOCATIONS = auto()
     RHYMES = auto()
 
     CLOSE = auto()
@@ -78,6 +79,7 @@ class InlineKeyboard:
             entry = user_data.get(UserData.ENTRY)
             lexeme = entry.get_lexeme_by_index(chosen_lexeme)
             examples_available = any(sense.examples for sense in lexeme.senses[:definitions_required])
+            collocations_available = any(sense.collocations for sense in lexeme.senses[:definitions_required])
             sense_amount = len(lexeme.senses)
             sense_amount_buttons = []
             if sense_amount > 1:
@@ -91,8 +93,8 @@ class InlineKeyboard:
                     sense_amount_buttons.append(Button.DEFINITIONS_BORDER)
             button_structure = [
                 sense_amount_buttons if sense_amount > 1 else [],
-                # [Button.SYNONYMS, Button.ANTONYMS],
-                [Button.EXAMPLES] if examples_available else [],    
+                [Button.ANTONYMS, Button.SYNONYMS],
+                [Button.EXAMPLES, Button.COLLOCATIONS],
                 [Button.CLOSE]
             ]
         else:
