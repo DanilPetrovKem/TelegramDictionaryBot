@@ -1,6 +1,6 @@
 {
-    "START_MESSAGE": "Hello! I can look up words for you using WordsAPI. \nType a word and I'll give you its definition\n\nUse /help to see available commands\n\nBy Danil Petrov",
-    "HELP_MESSAGE": "I can help you find definitions of words.\n- Type a word directly to get its main definition.\n- One word can have different parts of speech and multiple words can be written the same way so use the numbers buttons to choose which one you mean! Then you can press +1 and -1 buttons to look through more of its defitions and use the 'Examples' button to see examples if there are any.\n\nCommands:\n/lang_en - Change language to English\n/lang_ru - Сменить язык на русский\n/help - Show this help message\n\nBy Danil Petrov",
+    "START_MESSAGE": "Hello! I can look up words for you using WordsAPI. \nType a word and I'll give you its definition. Entries are case-sensitive - \"may\" (verb) and \"May\" (month) are different words!\n\nUse /help to see available commands\n\nBy Danil Petrov",
+    "HELP_MESSAGE": "I can help you find definitions of words.\n- Type a word directly to get its main definition.\n- Entries are case-sensitive - \"may\" (verb) and \"May\" (month) are different words!\n- One word can have different parts of speech and multiple words can be written the same way so use the numbers buttons to choose which one you mean! Then you can press +1 and -1 buttons to look through more of its defitions and use the 'Examples' button to see examples if there are any.\n\nCommands:\n/lang_en - Change language to English\n/lang_ru - Сменить язык на русский\n/help - Show this help message\n\nBy Danil Petrov",
     "CANCEL_MESSAGE": "Action cancelled",
 
     "MORE_DETAILS": "More details",
@@ -20,8 +20,8 @@
     "COMMAND_LANG_RU": "Русский интерфейс",
     "COMMAND_HELP": "Show help message",
 
-    "WORD_NOT_FOUND": "I couldn't find this word or phrase",
-    "NO_DEFINITIONS_FOUND": "The word exists but this dictionary does not provide its definition",
+    "WORD_NOT_FOUND": "I couldn't find this word or phrase. Remember that entries are case-sensitive - \"may\" and \"May\" are different words!",
+    "NO_DEFINITIONS_FOUND": "The word exists but there is no definition available",
 
     "UNKNOWN_ACTION": "Unknown action",
     "INVALID_COMMAND_USAGE": "Invalid command usage",

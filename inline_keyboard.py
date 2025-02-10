@@ -73,23 +73,24 @@ class InlineKeyboard:
         elif is_lexeme_chosen(used_buttons) or lexeme_amount == 1:
             # Layer 2
             # print("Layer 2")
+            chosen_lexeme = get_lexeme_chosen_id(used_buttons) if is_lexeme_chosen(used_buttons) else 0
             definitions_required = user_data.get(UserData.DEFINITIONS_REQUESTED, 1)
             entry = user_data.get(UserData.ENTRY)
-            lexeme = entry.get_lexeme_by_index(get_lexeme_chosen_id(used_buttons))
+            lexeme = entry.get_lexeme_by_index(chosen_lexeme)
             examples_available = any(sense.examples for sense in lexeme.senses[:definitions_required])
-            definitions_amount = len(lexeme.senses)
-            definition_amount_buttons = []
-            if definitions_amount > 1:
+            sense_amount = len(lexeme.senses)
+            sense_amount_buttons = []
+            if sense_amount > 1:
                 if definitions_required != 1:
-                    definition_amount_buttons.append(Button.LESS_DEFINITIONS)
+                    sense_amount_buttons.append(Button.LESS_DEFINITIONS)
                 else:
-                    definition_amount_buttons.append(Button.DEFINITIONS_BORDER)
-                if definitions_required != definitions_amount:
-                    definition_amount_buttons.append(Button.MORE_DEFINITIONS)
+                    sense_amount_buttons.append(Button.DEFINITIONS_BORDER)
+                if definitions_required != sense_amount:
+                    sense_amount_buttons.append(Button.MORE_DEFINITIONS)
                 else:
-                    definition_amount_buttons.append(Button.DEFINITIONS_BORDER)
+                    sense_amount_buttons.append(Button.DEFINITIONS_BORDER)
             button_structure = [
-                definition_amount_buttons,
+                sense_amount_buttons if sense_amount > 1 else [],
                 # [Button.SYNONYMS, Button.ANTONYMS],
                 [Button.EXAMPLES] if examples_available else [],    
                 [Button.CLOSE]

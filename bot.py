@@ -26,7 +26,7 @@ import commands
 wikked_api = WikkedAPI()
 
 async def plain_message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    word = update.message.text.strip().lower()
+    word = update.message.text.strip()
     await close_previous_markup(update, context)
     await provide_word_information(word, update, context)
 
@@ -43,6 +43,10 @@ async def close_previous_markup(update: Update, context: ContextTypes.DEFAULT_TY
 
 async def provide_word_information(requested_entry: str, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     entry = wikked_api.fetch(requested_entry)
+    # If entry is not found, try to inver the case of the first letter
+    invertcase_entry = requested_entry[0].swapcase() + requested_entry[1:]
+    if not entry.entry:
+        entry = wikked_api.fetch(invertcase_entry)
     context.user_data[UserData.USED_BUTTONS] = []
     context.user_data[UserData.ENTRY] = entry
     context.user_data[UserData.DEFINITIONS_REQUESTED] = 1
@@ -64,6 +68,20 @@ roman_numerals = {
 }
 
 def build_message_text(context: ContextTypes.DEFAULT_TYPE, entry: Entry, chosen_lexeme_id, localization: Localization) -> tuple[str, int]:
+    SUBSENSE_MAX_DEPTH = 5  # Adjustable max recursion depth
+    def render_sense(sense, level, example_requested, indent_base="       "):
+        indent = indent_base * level
+        # Format sense definition (including labels if any)
+        definition = f"({', '.join(sense.labels)}) {sense.definition}" if sense.labels else sense.definition
+        result = definition + "\n"
+        if example_requested and sense.examples:
+            for example in sense.examples:
+                result += f"{indent}{indent_base}<i>{example}</i>\n"
+        if level < SUBSENSE_MAX_DEPTH:
+            for idx, subsense in enumerate(sense.subsenses, start=1):
+                result += f"{indent}{indent_base}<b>{idx}.</b> " + render_sense(subsense, level + 1, example_requested, indent_base)
+        return result
+
     message_parts = []
     lexeme_number = 0
     buttons_used = context.user_data.get(UserData.USED_BUTTONS, [])
@@ -71,8 +89,10 @@ def build_message_text(context: ContextTypes.DEFAULT_TYPE, entry: Entry, chosen_
     example_requested = Button.EXAMPLES in buttons_used
 
     lexeme_amount = entry.lexeme_amount()
+    single_lexeme = lexeme_amount == 1
     word = entry.etymologies[0].lexemes[0].lemma
 
+    message_parts.append(f"Redirected from <b>{entry.redirected_from}</b>\n\n" if entry.redirected_from else "")
     message_parts.append(f"\"{word}\":\n\n")
 
     for etymology_idx, etymology in enumerate(entry.etymologies, start=1):
@@ -80,7 +100,7 @@ def build_message_text(context: ContextTypes.DEFAULT_TYPE, entry: Entry, chosen_
         if chosen_lexeme_id:
             chosen_lexeme = entry.get_lexeme_by_index(chosen_lexeme_id - 1)
             etymology_header += f"<b>{chosen_lexeme.part_of_speech.title()}</b>\n"
-        
+
         etymology_content = []
         for lexeme in etymology.lexemes:
             lexeme_number += 1
@@ -90,27 +110,12 @@ def build_message_text(context: ContextTypes.DEFAULT_TYPE, entry: Entry, chosen_
             part_of_speech = f"{lexeme.part_of_speech.title()}"
             lexeme_text = ""
 
-            # LEXEME CHOSEN
-            if not chosen_lexeme_id:
-                lexeme_text += (
-                    f"<b>{lexeme_number}. </b>" if not chosen_lexeme_id else ""
-                ) + f"<b>{part_of_speech}</b>\n{lexeme.senses[0].definition}\n"
+            if not chosen_lexeme_id and not single_lexeme:
+                definition = f"({', '.join(lexeme.senses[0].labels)}) {lexeme.senses[0].definition}" if lexeme.senses[0].labels else lexeme.senses[0].definition
+                lexeme_text += f"<b>{lexeme_number}. </b><b>{part_of_speech}</b>\n{definition}\n"
             else:
-                # LEXEME NOT CHOSEN
                 for sense_number, sense in enumerate(lexeme.senses[:definitions_requested], start=1):
-                    lexeme_text += f"<b>{sense_number}.</b> {sense.definition}\n"
-                    if example_requested and sense.examples:
-                        if example_requested:
-                            for example in sense.examples:
-                                lexeme_text += f"       <i>{example}</i>\n"
-                    if sense.subsenses:
-                        for subsense_number, subsense in enumerate(sense.subsenses, start=1):
-                            lexeme_text += f"       <b>{subsense_number}.</b> {subsense.definition}\n"
-                            if example_requested:
-                                for example in subsense.examples:
-                                    lexeme_text += f"           <i>{example}</i>\n"
-                    lexeme_text += "\n"
-            
+                    lexeme_text += f"<b>{sense_number}.</b> " + render_sense(sense, 0, example_requested) + "\n"
             etymology_content.append(lexeme_text + "\n")
 
         if etymology_content:
@@ -124,7 +129,7 @@ async def refresh_message(update:  Update, context: ContextTypes.DEFAULT_TYPE, n
     used_buttons = context.user_data.get(UserData.USED_BUTTONS, [])
     entry: Entry = context.user_data.get(UserData.ENTRY, Entry())
 
-    if not entry.etymologies:
+    if not entry.entry:
         return await update.message.reply_text(localization.get(Phrases.WORD_NOT_FOUND))
 
     chosen_lexeme = None
