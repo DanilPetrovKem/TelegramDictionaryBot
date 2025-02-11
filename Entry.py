@@ -1,8 +1,8 @@
 from typing import List
+import re  # added import
 
 def clean_unsupported_tags(text: str) -> str:
-    text = text.replace("<math>", "").replace("</math>", "")
-    return text
+    return re.sub(r'<[^>]+>', '', text)  # replaced removal logic to remove all tags
 
 class Etymology:
     def __init__(self):
@@ -32,6 +32,18 @@ class Lexeme:
         inst.part_of_speech = data.get("part_of_speech") or ""
         inst.senses = [Sense.from_json(s) for s in data.get("senses", [])]
         return inst
+    
+    def has_synonyms(self, definitions_required: int) -> bool:
+        return any(sense.has_synonyms(definitions_required) for sense in self.senses)
+    
+    def has_antonyms(self, definitions_required: int) -> bool:
+        return any(sense.has_antonyms(definitions_required) for sense in self.senses)
+    
+    def has_collocations(self, definitions_required: int) -> bool:
+        return any(sense.has_collocations(definitions_required) for sense in self.senses)
+    
+    def has_examples(self, definitions_required: int) -> bool:
+        return any(sense.has_examples(definitions_required) for sense in self.senses)
 
     # Changed __repr__ for tree-like structure using two spaces instead of tabs
     def __repr__(self):
@@ -59,7 +71,35 @@ class Sense:
         inst.collocations = [clean_unsupported_tags(collocation) for collocation in data.get("collocations", [])]
         inst.subsenses = [cls.from_json(sub) for sub in data.get("subsenses", [])]
         return inst
-
+    
+    def has_synonyms(self, definitions_required: int) -> bool:
+        if any(self.synonyms):
+            return True
+        if definitions_required == 1:
+            return False
+        return any(subsense.has_synonyms(definitions_required - 1) for subsense in self.subsenses)
+    
+    def has_antonyms(self, definitions_required: int) -> bool:
+        if any(self.antonyms):
+            return True
+        if definitions_required == 1:
+            return False
+        return any(subsense.has_antonyms(definitions_required - 1) for subsense in self.subsenses)
+    
+    def has_collocations(self, definitions_required: int) -> bool:
+        if any(self.collocations):
+            return True
+        if definitions_required == 1:
+            return False
+        return any(subsense.has_collocations(definitions_required - 1) for subsense in self.subsenses)
+    
+    def has_examples(self, definitions_required: int) -> bool:
+        if any(self.examples):
+            return True
+        if definitions_required == 1:
+            return False
+        return any(subsense.has_examples(definitions_required - 1) for subsense in self.subsenses)
+    
     def get_definition_with_labels(self) -> str:
         return f"{self.definition} ({', '.join(self.labels)})" if self.labels else self.definition
     
