@@ -166,6 +166,12 @@ async def less_definitions_callback(update: Update, context: ContextTypes.DEFAUL
 
     await refresh_message(update, context)
 
+async def back_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    context.user_data[UserData.USED_BUTTONS] = []
+    context.user_data[UserData.DEFINITIONS_REQUESTED] = 1
+
+    await refresh_message(update, context)
+
 async def close_markup(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     context.user_data[UserData.USED_BUTTONS] = []
     await update.callback_query.edit_message_reply_markup(reply_markup=None)
@@ -176,6 +182,7 @@ async def definitions_border_callback(update: Update, context: ContextTypes.DEFA
 SPECIAL_BUTTON_CALLBACKS = {
     Button.MORE_DEFINITIONS: more_definitions_callback,
     Button.LESS_DEFINITIONS: less_definitions_callback,
+    Button.BACK: back_callback,
     Button.CLOSE: close_markup,
     Button.DEFINITIONS_BORDER: definitions_border_callback,
 }
@@ -193,7 +200,7 @@ async def callback_dispatcher(update: Update, context: ContextTypes.DEFAULT_TYPE
 
 def get_localized_commands(localization: Localization) -> list:
     return [
-        BotCommand("random", localization.get(Phrases.COMMAND_RANDOM)),
+        # BotCommand("random", localization.get(Phrases.COMMAND_RANDOM)),
         BotCommand("lang_en", localization.get(Phrases.COMMAND_LANG_EN)),
         BotCommand("lang_ru", localization.get(Phrases.COMMAND_LANG_RU)),
         BotCommand("help", localization.get(Phrases.COMMAND_HELP)),

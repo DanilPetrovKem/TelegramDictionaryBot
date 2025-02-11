@@ -12,6 +12,7 @@
     "ANTONYMS": "Antonyms",
     "COLLOCATIONS": "Collocations",
     "RHYMES": "Rhymes",
+    "BACK": "<- Back",
     "CLOSE": "Close",
 
     "LANGUAGE_CHANGED": "Language changed to {language}",

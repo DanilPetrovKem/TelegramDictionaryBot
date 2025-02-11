@@ -19,6 +19,7 @@ class Phrases(Enum):
     ANTONYMS = auto()
     COLLOCATIONS = auto()
     RHYMES = auto()
+    BACK = auto()
     CLOSE = auto()
 
     # Command replies

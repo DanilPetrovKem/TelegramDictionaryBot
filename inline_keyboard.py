@@ -23,6 +23,7 @@ class Button(str, Enum):
     COLLOCATIONS = auto()
     RHYMES = auto()
 
+    BACK = auto()
     CLOSE = auto()
 
     @staticmethod
@@ -78,10 +79,7 @@ class InlineKeyboard:
             definitions_required = user_data.get(UserData.DEFINITIONS_REQUESTED, 1)
             entry = user_data.get(UserData.ENTRY)
             lexeme = entry.get_lexeme_by_index(chosen_lexeme)
-            examples_available = lexeme.has_examples(definitions_required)
-            collocations_available = lexeme.has_collocations(definitions_required)
-            synonyms_available = lexeme.has_synonyms(definitions_required)
-            antonyms_available = lexeme.has_antonyms(definitions_required)
+            fields_present = lexeme.has_fields(definitions_required)
             sense_amount = len(lexeme.senses)
             sense_amount_buttons = []
             if sense_amount > 1:
@@ -94,22 +92,22 @@ class InlineKeyboard:
                 else:
                     sense_amount_buttons.append(Button.DEFINITIONS_BORDER)
             antonyms_synonyms_row = []
-            if antonyms_available:
+            if fields_present.get("antonyms"):
                 antonyms_synonyms_row.append(Button.ANTONYMS)
-            if synonyms_available:
+            if fields_present.get("synonyms"):
                 antonyms_synonyms_row.append(Button.SYNONYMS)
 
             examples_collocations_row = []
-            if examples_available:
+            if fields_present.get("examples"):
                 examples_collocations_row.append(Button.EXAMPLES)
-            if collocations_available:
+            if fields_present.get("collocations"):
                 examples_collocations_row.append(Button.COLLOCATIONS)
 
             button_structure = [
-                sense_amount_buttons if sense_amount > 1 else [],
                 antonyms_synonyms_row,
                 examples_collocations_row,
-                [Button.CLOSE]
+                sense_amount_buttons if sense_amount > 1 else [],
+                [Button.BACK, Button.CLOSE],
             ]
         else:
             # print("FALLBACK")

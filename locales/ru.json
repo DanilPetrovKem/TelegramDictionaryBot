@@ -12,6 +12,7 @@
     "ANTONYMS": "Антонимы",
     "COLLOCATIONS": "Словосочетания",
     "RHYMES": "Рифмы",
+    "BACK": "<- Назад",
     "CLOSE": "Закрыть",
     
     "LANGUAGE_CHANGED": "Язык изменен на {language}",
