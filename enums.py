@@ -6,8 +6,3 @@ class UserData(str, Enum):
     LOCALE = "locale"
     LAST_MESSAGE_ID = "last_message_id"
     DEFINITIONS_REQUESTED = "definitions_requested"
-
-# class MessageResult(str, Enum):
-#     OK = "ok"
-#     NOT_FOUND = "word_not_found"
-#     NO_DEFINITIONS = "no_definitions_found"

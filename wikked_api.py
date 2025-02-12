@@ -1,8 +1,10 @@
 import requests
 import json
 import os
-from Entry import Entry, Etymology, Lexeme, Sense
+from Entry import Entry
 from dotenv import load_dotenv
+from enums import UserData
+import time
 
 class WikkedAPI:
     def __init__(self):
@@ -22,7 +24,6 @@ class WikkedAPI:
             return Entry()
         entry = Entry.from_json(entry_json)
         return entry
-
 
 if __name__ == "__main__":
     wikked_api = WikkedAPI()

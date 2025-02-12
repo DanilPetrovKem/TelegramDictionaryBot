@@ -103,11 +103,16 @@ class InlineKeyboard:
             if fields_present.get("collocations"):
                 examples_collocations_row.append(Button.COLLOCATIONS)
 
+            back_close_row = []
+            if lexeme_amount > 1:
+                back_close_row.append(Button.BACK)
+            back_close_row.append(Button.CLOSE)
+
             button_structure = [
                 antonyms_synonyms_row,
                 examples_collocations_row,
                 sense_amount_buttons if sense_amount > 1 else [],
-                [Button.BACK, Button.CLOSE],
+                back_close_row,
             ]
         else:
             # print("FALLBACK")

@@ -2,7 +2,7 @@ import os
 import logging
 from dotenv import load_dotenv
 from telegram import Update, BotCommand
-from telegram.constants import ParseMode
+from telegram.constants import ParseMode, ChatAction
 from telegram.ext import (
     Application,
     ApplicationBuilder,
@@ -42,8 +42,10 @@ async def close_previous_markup(update: Update, context: ContextTypes.DEFAULT_TY
             logging.warning(f"Failed to edit previous message: {e}")
 
 async def provide_word_information(requested_entry: str, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    await context.bot.send_chat_action(chat_id=update.message.chat_id, action=ChatAction.TYPING)
     entry = wikked_api.fetch(requested_entry)
-    # If entry is not found, try to inver the case of the first letter
+    
+    # If entry is not found, try to invert the case of the first letter
     invertcase_entry = requested_entry[0].swapcase() + requested_entry[1:]
     if not entry.entry:
         entry = wikked_api.fetch(invertcase_entry)
