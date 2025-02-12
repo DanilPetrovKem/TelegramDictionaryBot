@@ -71,7 +71,7 @@ roman_numerals = {
 
 def build_message_text(context: ContextTypes.DEFAULT_TYPE, entry: Entry, chosen_lexeme_id, localization: Localization) -> tuple[str, int]:
     SUBSENSE_MAX_DEPTH = 5  # Adjustable max recursion depth
-    def render_sense(sense, level, example_requested, synonyms_requested, antonyms_requested, collocations_requested, indent_base="       "):
+    def render_sense(sense, level, example_requested, synonyms_requested, antonyms_requested, collocations_requested, indent_base="       ", recursive=True):
         indent = indent_base * level
         # Format sense definition (including labels if any)
         definition = f"({', '.join(sense.labels)}) {sense.definition}" if sense.labels else sense.definition
@@ -85,7 +85,7 @@ def build_message_text(context: ContextTypes.DEFAULT_TYPE, entry: Entry, chosen_
             result += f"{indent}{indent_base}<i><b>≠</b> {', '.join(sense.antonyms)}</i>\n"
         if collocations_requested and sense.collocations:
             result += f"{indent}{indent_base}<i>Collocations: {', '.join(sense.collocations)}</i>\n"
-        if level < SUBSENSE_MAX_DEPTH:
+        if recursive and level < SUBSENSE_MAX_DEPTH:
             for idx, subsense in enumerate(sense.subsenses, start=1):
                 result += f"{indent}{indent_base}<b>{idx}.</b> " + render_sense(subsense, level + 1, example_requested, synonyms_requested, antonyms_requested, collocations_requested, indent_base)
         return result
@@ -124,6 +124,9 @@ def build_message_text(context: ContextTypes.DEFAULT_TYPE, entry: Entry, chosen_
             if not chosen_lexeme_id and not single_lexeme:
                 definition = f"({', '.join(lexeme.senses[0].labels)}) {lexeme.senses[0].definition}" if lexeme.senses[0].labels else lexeme.senses[0].definition
                 lexeme_text += f"<b>{lexeme_number}. </b><b>{part_of_speech}</b>\n{definition}\n"
+                if not lexeme.senses[0].definition:
+                    # Add only the first subsense of each sense
+                    lexeme_text += render_sense(lexeme.senses[0].subsenses[0], 0, example_requested, synonyms_requested, antonyms_requested, collocations_requested, recursive=False) + "\n"
             else:
                 for sense_number, sense in enumerate(lexeme.senses[:definitions_requested], start=1):
                     lexeme_text += f"<b>{sense_number}.</b> " + render_sense(sense, 0, example_requested, synonyms_requested, antonyms_requested, collocations_requested) + "\n"
