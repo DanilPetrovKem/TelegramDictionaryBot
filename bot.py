@@ -28,7 +28,7 @@ wikked_api = WikkedAPI()
 async def plain_message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     word = update.message.text.strip()
     await close_previous_markup(update, context)
-    await provide_word_information(word, update, context)
+    await fetch_requested_entry(word, update, context)
 
 async def close_previous_markup(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if UserData.LAST_MESSAGE_ID in context.user_data:
@@ -41,7 +41,7 @@ async def close_previous_markup(update: Update, context: ContextTypes.DEFAULT_TY
         except Exception as e:
             logging.warning(f"Failed to edit previous message: {e}")
 
-async def provide_word_information(requested_entry: str, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def fetch_requested_entry(requested_entry: str, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await context.bot.send_chat_action(chat_id=update.message.chat_id, action=ChatAction.TYPING)
     entry = wikked_api.fetch(requested_entry)
     
@@ -49,12 +49,16 @@ async def provide_word_information(requested_entry: str, update: Update, context
     invertcase_entry = requested_entry[0].swapcase() + requested_entry[1:]
     if not entry.entry:
         entry = wikked_api.fetch(invertcase_entry)
+    await provide_word_information(entry, update, context)
+
+async def provide_word_information(entry: Entry, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     context.user_data[UserData.USED_BUTTONS] = []
     context.user_data[UserData.ENTRY] = entry
     context.user_data[UserData.DEFINITIONS_REQUESTED] = 1
 
     sent_message = await refresh_message(update, context, new=True)
     context.user_data[UserData.LAST_MESSAGE_ID] = sent_message.message_id
+
 
 roman_numerals = {
     1: "I",
@@ -184,6 +188,12 @@ async def close_markup(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 async def definitions_border_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     pass
 
+async def random_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    entry = wikked_api.fetch_random()
+    if not entry:
+        return
+    await provide_word_information(entry, update, context)
+
 SPECIAL_BUTTON_CALLBACKS = {
     Button.MORE_DEFINITIONS: more_definitions_callback,
     Button.LESS_DEFINITIONS: less_definitions_callback,
@@ -205,7 +215,7 @@ async def callback_dispatcher(update: Update, context: ContextTypes.DEFAULT_TYPE
 
 def get_localized_commands(localization: Localization) -> list:
     return [
-        # BotCommand("random", localization.get(Phrases.COMMAND_RANDOM)),
+        BotCommand("random", localization.get(Phrases.COMMAND_RANDOM)),
         BotCommand("lang_en", localization.get(Phrases.COMMAND_LANG_EN)),
         BotCommand("lang_ru", localization.get(Phrases.COMMAND_LANG_RU)),
         BotCommand("help", localization.get(Phrases.COMMAND_HELP)),
@@ -243,7 +253,7 @@ def main() -> None:
     application.add_handler(CommandHandler("cancel", commands.cancel_command))
     application.add_handler(CommandHandler("lang_en", commands.lang_en_command))
     application.add_handler(CommandHandler("lang_ru", commands.lang_ru_command))
-    # application.add_handler(CommandHandler("random", random_command))
+    application.add_handler(CommandHandler("random", random_command))
 
     application.add_handler(CallbackQueryHandler(callback_dispatcher))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, plain_message_handler), group=1)

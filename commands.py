@@ -22,12 +22,6 @@ async def cancel_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     await update.message.reply_text(localization.get(Phrases.CANCEL_MESSAGE))
     return ConversationHandler.END
 
-# async def random_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-#     word = words_api.fetch_random_word()
-#     if not word:
-#         return
-#     await provide_word_information(word, update, context)
-
 async def lang_en_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await set_language_specific(update, context, 'en')
 

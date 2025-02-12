@@ -4,7 +4,6 @@ import os
 from Entry import Entry
 from dotenv import load_dotenv
 from enums import UserData
-import time
 
 class WikkedAPI:
     def __init__(self):
@@ -24,6 +23,14 @@ class WikkedAPI:
             return Entry()
         entry = Entry.from_json(entry_json)
         return entry
+
+    def fetch_random(self) -> Entry:
+        response = requests.get(f"https://{self.base_url}/random", headers=self.headers)
+        random_entry_json = json.loads(response.text)
+        if "entry" not in random_entry_json or "etymologies" not in random_entry_json:
+            return Entry()
+        random_entry = Entry.from_json(random_entry_json)
+        return random_entry
 
 if __name__ == "__main__":
     wikked_api = WikkedAPI()
