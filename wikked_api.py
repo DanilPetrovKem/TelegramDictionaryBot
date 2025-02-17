@@ -8,7 +8,7 @@ from enums import UserData
 class WikkedAPI:
     def __init__(self):
         load_dotenv()
-        self.base_url = "wikked1.p.rapidapi.com"
+        self.base_url = os.getenv("API_BASE_URL")
         self.rapidapi_key = os.getenv("RAPIDAPI_KEY")
         self.headers = {
             "x-rapidapi-key": self.rapidapi_key,
